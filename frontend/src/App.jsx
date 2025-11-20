@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 
 // In dev, point to localhost; in prod, set VITE_API_BASE_URL to your Render URL
-const API_BASE = 'https://ai-dm-backend-hdkl.onrender.com/api/state';
+const API_BASE = 'https://ai-dm-backend-hdkl.onrender.com';
 
 function App() {
   const [messages, setMessages] = useState([
