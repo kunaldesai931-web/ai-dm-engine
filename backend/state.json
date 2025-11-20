@@ -1,0 +1,56 @@
+{
+  "campaign": {
+    "name": "The Wire and Wrath",
+    "system": "DND5E",
+    "tone": "Gritty, economic-sim heavy",
+    "world_date": "14th Bloomwane, 742 AE"
+  },
+  "party": {
+    "Maximus": {
+      "class": "Fighter 3",
+      "hp": 24,
+      "ac": 18,
+      "notes": "Wants to found a mercenary company"
+    },
+    "Kaela": {
+      "class": "Rogue 3",
+      "hp": 18,
+      "ac": 15,
+      "notes": "Scout & sniper"
+    },
+    "Mara": {
+      "class": "Cleric 3",
+      "hp": 20,
+      "ac": 17,
+      "notes": "War domain, frontline healer"
+    }
+  },
+  "economy": {
+    "party_gold": 120,
+    "debts": {
+      "Raven": 200
+    }
+  },
+  "factions": {
+    "RedKnives": {
+      "attitude": "Hostile",
+      "notes": "You killed a lieutenant"
+    },
+    "Raven": {
+      "attitude": "Neutral",
+      "notes": "Fixer; you owe her money"
+    }
+  },
+  "quests": {
+    "PayYourDebts": {
+      "status": "Ongoing",
+      "description": "Repay 200g to Raven.",
+      "progress": 0
+    }
+  },
+  "log": [
+    "Cleared a small Red Knives safehouse and escaped before reinforcements arrived.",
+    "Currently resting at the Broken Anvil tavern.",
+    "The party regroups at the Broken Anvil, wary of repercussions after the Red Knives raid."
+  ]
+}
