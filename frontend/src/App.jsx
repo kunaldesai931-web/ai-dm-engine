@@ -37,12 +37,15 @@ function App() {
     loadState();
   }, []);
 
-  const sendTurn = async (e) => {
+    const sendTurn = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
     const playerText = input.trim();
-    setMessages((msgs) => [...msgs, { sender: 'player', text: playerText }]);
+    setMessages((msgs) => [
+      ...msgs,
+      { sender: 'player', text: playerText }
+    ]);
     setInput('');
     setLoading(true);
 
@@ -53,42 +56,67 @@ function App() {
         body: JSON.stringify({ playerInput: playerText })
       });
 
+      const text = await res.text();
+
       if (!res.ok) {
-        const detail = await res.text();
-        console.error('Backend error:', detail);
+        console.error('Backend error:', res.status, text);
         setMessages((msgs) => [
           ...msgs,
-          { sender: 'system', text: 'Error from backend. Check logs.' }
+          {
+            sender: 'system',
+            text: `Backend error ${res.status}: ${text.slice(0, 200)}`
+          }
         ]);
-      } else {
-        const data = await res.json();
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Failed to parse JSON from backend:', parseErr, text);
         setMessages((msgs) => [
           ...msgs,
-          { sender: 'dm', text: data.dmOutput }
+          {
+            sender: 'system',
+            text: 'Backend returned invalid JSON.'
+          }
         ]);
-        if (data.stateSummary) {
-          setStateSummary(data.stateSummary);
-        }
+        return;
+      }
+
+      setMessages((msgs) => [
+        ...msgs,
+        { sender: 'dm', text: data.dmOutput }
+      ]);
+
+      if (data.stateSummary) {
+        setStateSummary(data.stateSummary);
       }
     } catch (err) {
       console.error('Request error:', err);
       setMessages((msgs) => [
         ...msgs,
-        { sender: 'system', text: 'Network error.' }
+        { sender: 'system', text: `Network error: ${String(err)}` }
       ]);
     } finally {
       setLoading(false);
     }
   };
 
+
   return (
     <div style={styles.app}>
       <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>AI DM Engine</h1>
-          <p style={styles.subtitle}>Persistent, drift-proof campaigns</p>
-        </div>
-      </header>
+  <div>
+    <h1 style={styles.title}>AI DM Engine</h1>
+    <p style={styles.subtitle}>Persistent, drift-proof campaigns</p>
+    <p style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+      API_BASE: {API_BASE}
+    </p>
+  </div>
+</header>
+
 
       <div style={styles.content}>
         <section style={styles.chatSection}>
