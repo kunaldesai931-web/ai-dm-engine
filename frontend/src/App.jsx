@@ -7,10 +7,34 @@ function App() {
   const [messages, setMessages] = useState([
     { sender: 'system', text: 'Welcome to your AI DM campaign.' }
   ]);
+  const [campaignId, setCampaignId] = useState('default');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [stateSummary, setStateSummary] = useState(null);
   const chatEndRef = useRef(null);
+
+  // Helper: load state for a given campaign
+  const loadStateForCampaign = async (id) => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/state?campaignId=${encodeURIComponent(id)}`
+      );
+      if (!res.ok) {
+        console.error('Failed to load state:', await res.text());
+        setStateSummary(null);
+        return;
+      }
+      const data = await res.json();
+      setStateSummary({
+        campaignId: data.campaignId,
+        party: data.party,
+        economy: data.economy
+      });
+    } catch (err) {
+      console.error('Failed to load state', err);
+      setStateSummary(null);
+    }
+  };
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -19,25 +43,13 @@ function App() {
     }
   }, [messages]);
 
-  // Load initial state summary
+  // Load state whenever campaignId changes
   useEffect(() => {
-    const loadState = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/state`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setStateSummary({
-          party: data.party,
-          economy: data.economy
-        });
-      } catch (err) {
-        console.error('Failed to load state', err);
-      }
-    };
-    loadState();
-  }, []);
+    loadStateForCampaign(campaignId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignId]);
 
-    const sendTurn = async (e) => {
+  const sendTurn = async (e) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
@@ -53,7 +65,7 @@ function App() {
       const res = await fetch(`${API_BASE}/api/turn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerInput: playerText })
+        body: JSON.stringify({ playerInput: playerText, campaignId })
       });
 
       const text = await res.text();
@@ -104,19 +116,44 @@ function App() {
     }
   };
 
-
   return (
     <div style={styles.app}>
       <header style={styles.header}>
-  <div>
-    <h1 style={styles.title}>AI DM Engine</h1>
-    <p style={styles.subtitle}>Persistent, drift-proof campaigns</p>
-    <p style={{ fontSize: '0.7rem', opacity: 0.7 }}>
-      API_BASE: {API_BASE}
-    </p>
-  </div>
-</header>
-
+        <div>
+          <h1 style={styles.title}>AI DM Engine</h1>
+          <p style={styles.subtitle}>Persistent, drift-proof campaigns</p>
+          <p style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+            API_BASE: {API_BASE}
+          </p>
+          <div style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
+            <label>
+              Campaign ID:{' '}
+              <input
+                type="text"
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                style={{
+                  padding: '0.2rem 0.4rem',
+                  fontSize: '0.8rem',
+                  width: '10rem'
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => loadStateForCampaign(campaignId)}
+              style={{
+                marginLeft: '0.5rem',
+                padding: '0.2rem 0.6rem',
+                fontSize: '0.8rem',
+                cursor: 'pointer'
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </header>
 
       <div style={styles.content}>
         <section style={styles.chatSection}>
@@ -156,23 +193,33 @@ function App() {
           <h2 style={styles.sectionTitle}>Campaign State</h2>
           {stateSummary ? (
             <div style={styles.stateContent}>
+              {stateSummary.campaignId && (
+                <p style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                  Campaign: <strong>{stateSummary.campaignId}</strong>
+                </p>
+              )}
               <h3>Party</h3>
               <ul style={styles.list}>
-                {Object.entries(stateSummary.party || {}).map(([name, info]) => (
-                  <li key={name} style={styles.listItem}>
-                    <strong>{name}</strong> – {info.class} | HP: {info.hp} | AC: {info.ac}
-                  </li>
-                ))}
+                {Object.entries(stateSummary.party || {}).map(
+                  ([name, info]) => (
+                    <li key={name} style={styles.listItem}>
+                      <strong>{name}</strong> – {info.class} | HP: {info.hp} | AC:{' '}
+                      {info.ac}
+                    </li>
+                  )
+                )}
               </ul>
               <h3>Economy</h3>
               <p>Party Gold: {stateSummary.economy?.party_gold}</p>
               {stateSummary.economy?.debts && (
                 <ul style={styles.list}>
-                  {Object.entries(stateSummary.economy.debts).map(([who, amt]) => (
-                    <li key={who} style={styles.listItem}>
-                      {who}: {amt}g
-                    </li>
-                  ))}
+                  {Object.entries(stateSummary.economy.debts).map(
+                    ([who, amt]) => (
+                      <li key={who} style={styles.listItem}>
+                        {who}: {amt}g
+                      </li>
+                    )
+                  )}
                 </ul>
               )}
             </div>
