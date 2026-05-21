@@ -35,7 +35,8 @@ NPCs/world. Enemy HP is visible once combat starts.
 
 ## Running the engine
 
-From `engine/`: `node src/cli.js <command> [flags]` (or `npm run engine -- <command>`).
+From `engine/`: `npx tsx src/cli.ts <command> [flags]` (or `npm run engine -- <command>`).
+TypeScript runs directly via `tsx` — no build step. `npm run typecheck` validates types.
 With one campaign it's auto-selected; otherwise pass `--campaign <name>`.
 
 ```
@@ -46,13 +47,15 @@ save   --actor ID --ability A [--dc N] [--adv|--dis]
 attack --attacker ID --target ID (--ability A --proficient | --bonus N) --damage NdM+K [--type T] [--adv|--dis]
 damage --target ID (--amount N | --roll NdM+K) [--type T] [--crit]
 heal   --target ID --amount N
-cast   --actor ID --spell S [--slot N]          # omit/0 slot = cantrip
+cast   --actor ID --spell S [--slot N]          # SRD spells carry their own level (cantrip = no slot)
 rest   --actor ID --type short|long
 modify --resource gold --delta N | modify --actor ID --resource xp --delta N
 inventory add|remove --actor ID --item ID [--qty N]
 state get [--path a.b.c]
 state patch [--file patch.json] [--set a.b=val ...]   # validated + atomic
 combat start --participants id1,id2,... | combat next | combat end
+monster add --from <srd-monster> [--as ID]      # spawn an SRD monster into npcs
+srd spell|weapon|condition|monster <name>        # read-only SRD lookup
 region enter <id> | region leave
 campaign list | campaign load
 ```
