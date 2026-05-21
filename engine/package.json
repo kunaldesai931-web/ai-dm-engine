@@ -1,0 +1,11 @@
+{
+  "name": "ai-dm-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "engine": "src/cli.js" },
+  "description": "Deterministic tabletop engine. Code owns the dice and state; the LLM narrates.",
+  "scripts": {
+    "engine": "node src/cli.js"
+  }
+}
