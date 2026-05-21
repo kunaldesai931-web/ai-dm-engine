@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "campaign": "Argent Legacy",
+    "system": "dnd5e",
+    "edition": "5.1-SRD",
+    "tone": null,
+    "canonVersion": "1.0",
+    "currentRegion": "forest-of-allanar",
+    "worldTime": "Morning after the victory at the Old Watchtower",
+    "sessionNumber": 3
+  },
+  "rng": {
+    "seed": "argent-legacy",
+    "cursor": 0
+  },
+  "houseRules": {
+    "noFudging": true,
+    "diceReveal": true,
+    "enemyHpVisible": true,
+    "pcRollsOwn": true,
+    "aiRollsWorld": true
+  },
+  "pcs": {
+    "maximus": {
+      "name": "Maximus",
+      "class": "Warlock",
+      "level": 3,
+      "abilities": {
+        "str": null,
+        "dex": null,
+        "con": null,
+        "int": null,
+        "wis": 14,
+        "cha": 17
+      },
+      "profBonus": 2,
+      "ac": null,
+      "speed": null,
+      "initiativeMod": null,
+      "hp": {
+        "current": 19,
+        "max": 19,
+        "temp": 0
+      },
+      "saves": [
+        "wis",
+        "cha"
+      ],
+      "skills": {},
+      "spellSlots": {
+        "2": {
+          "max": 2,
+          "used": 0
+        }
+      },
+      "knownSpells": [],
+      "features": [
+        "pact-of-the-legacy"
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "name": "herald's-radiance",
+          "note": "Radiant Rapier manifestation; exact mechanics TBD",
+          "modifies": {}
+        }
+      ],
+      "inventory": [
+        {
+          "id": "obsidian-shard",
+          "qty": 1
+        },
+        {
+          "id": "tarnished-silver-locket",
+          "qty": 1,
+          "note": "contains portrait of an elf"
+        },
+        {
+          "id": "potion-of-healing",
+          "qty": 1
+        }
+      ],
+      "xp": null
+    }
+  },
+  "npcs": {
+    "sybilla": {
+      "name": "Sybilla",
+      "role": "mentor / expert NPC",
+      "ac": null,
+      "hp": {
+        "current": 19,
+        "max": 22,
+        "temp": 0
+      },
+      "conditions": [],
+      "disposition": "trust deepened after Watchtower victory"
+    },
+    "kiri": {
+      "name": "Kiri",
+      "role": "fey companion / battlefield support",
+      "ac": null,
+      "hp": {
+        "current": null,
+        "max": null,
+        "temp": 0
+      },
+      "conditions": [],
+      "disposition": "friendly ally"
+    }
+  },
+  "party": {
+    "gold": 35,
+    "inventory": [],
+    "reputation": {}
+  },
+  "quests": {
+    "embrace-your-destiny": {
+      "status": "ongoing",
+      "objective": "Understand and accept Maximus's celestial heritage and the Argent Legacy",
+      "clue": "Pendant manifested Herald's Radiance and defended against a psychic attack",
+      "stake": "Growth of power, identity, and destiny"
+    },
+    "apprenticeship-under-sybilla": {
+      "status": "ongoing",
+      "objective": "Train under Sybilla and learn the wider truth of Maximus's role",
+      "clue": "Sybilla remains actively involved after the Blight's purification",
+      "stake": "Knowledge, survival, and mastery"
+    },
+    "investigate-source-of-the-blight": {
+      "status": "done",
+      "objective": "Find and neutralize the source of the Blight",
+      "clue": "Heart of Blight purified at the Old Watchtower",
+      "stake": "Forest cleansed; Level 3 reached; loot recovered"
+    }
+  },
+  "factions": {
+    "unknown-blight-force": {
+      "attitude": "hostile / defeated locally",
+      "clock": 0,
+      "notes": "Heart of Blight destroyed/purified; corrupted the Old Watchtower and Blight Wolves"
+    }
+  },
+  "threads": {
+    "obsidian-shard": {
+      "intro": "Old Watchtower aftermath",
+      "clues": [
+        "Mysterious shard recovered after Blight purification"
+      ],
+      "hidden": "Origin, purpose, whether corruptive or protective",
+      "urgency": "med"
+    },
+    "tarnished-silver-locket": {
+      "intro": "Old Watchtower loot",
+      "clues": [
+        "Contains portrait of an elf"
+      ],
+      "hidden": "Identity of the elf; connection to the Argent Legacy or Blight",
+      "urgency": "med"
+    },
+    "the-argent-legacy": {
+      "intro": "Ongoing destiny arc",
+      "clues": [
+        "Pendant",
+        "Herald's Radiance",
+        "Pact of the Legacy"
+      ],
+      "hidden": "Full lineage, enemies, obligations, cost",
+      "urgency": "high"
+    }
+  },
+  "combat": {
+    "active": false
+  }
+}
