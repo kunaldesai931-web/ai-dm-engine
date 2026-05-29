@@ -77,3 +77,28 @@ Narrative-only changes (a quest clue advances, an NPC attitude shifts) go throug
 - Long rest is refused at 0 HP; spell slots can't be over-spent; gold can't go negative.
 - Attacks require the target's AC; checks require the relevant ability score.
 - The RNG cursor only ever moves forward — proof no roll was secretly redone.
+
+## Chronicle — keeping session context bounded
+
+The chronicle is narrative memory held in `state.json` (`state.chronicle`) and is
+the reason a long campaign stays inside a small context window. The engine owns it:
+
+- **Every turn:** after narrating, log a one-line summary —
+  `engine chronicle append --text "<who did what, with the mechanical outcome>"`.
+- **Every 8th turn** (and at `session end`): run `engine chronicle compress`, read the
+  buffered lines from its JSON, summarise them in <=200 words (preserve PC decisions,
+  NPC names, locations, mechanical outcomes, open threads), then commit that summary —
+  `engine chronicle commit --summary "<text>"`. Commit clears the buffer; do this even
+  mid-scene.
+- **At session start:** run `engine chronicle read` to load the compressed history
+  instead of replaying raw turns. Combine it with the `session start` brief.
+
+## NPC protocol — distinct voices
+
+Before speaking as any NPC (id matches the `npcs` key in `state.json`):
+
+1. Read `campaigns/<name>/npcs/<id>.persona.md` in full.
+2. Read the last ~10 lines of `campaigns/<name>/npcs/<id>.memory.log`.
+3. Speak in that voice. Do not blend two NPCs' voices in one scene.
+4. When the NPC's scene ends, append one line to their memory log:
+   `<ISO timestamp> | Scene: <location> | <one sentence: what happened / was revealed>`.
