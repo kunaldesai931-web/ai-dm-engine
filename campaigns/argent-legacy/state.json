@@ -107,32 +107,6 @@
       "conditions": [],
       "role": "fey companion / battlefield support",
       "disposition": "friendly ally"
-    },
-    "goblin-1": {
-      "name": "Goblin",
-      "ac": 15,
-      "initiativeMod": 2,
-      "hp": {
-        "current": 3,
-        "max": 7,
-        "temp": 0
-      },
-      "conditions": [],
-      "srdMonster": "goblin",
-      "cr": 0.25
-    },
-    "goblin-2": {
-      "name": "Goblin",
-      "ac": 15,
-      "initiativeMod": 2,
-      "hp": {
-        "current": 7,
-        "max": 7,
-        "temp": 0
-      },
-      "conditions": [],
-      "srdMonster": "goblin",
-      "cr": 0.25
     }
   },
   "party": {
