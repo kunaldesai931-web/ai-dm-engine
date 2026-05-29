@@ -11,7 +11,7 @@
   },
   "rng": {
     "seed": "argent-legacy",
-    "cursor": 1
+    "cursor": 6
   },
   "houseRules": {
     "noFudging": true,
@@ -107,6 +107,32 @@
       "conditions": [],
       "role": "fey companion / battlefield support",
       "disposition": "friendly ally"
+    },
+    "goblin-1": {
+      "name": "Goblin",
+      "ac": 15,
+      "initiativeMod": 2,
+      "hp": {
+        "current": 3,
+        "max": 7,
+        "temp": 0
+      },
+      "conditions": [],
+      "srdMonster": "goblin",
+      "cr": 0.25
+    },
+    "goblin-2": {
+      "name": "Goblin",
+      "ac": 15,
+      "initiativeMod": 2,
+      "hp": {
+        "current": 7,
+        "max": 7,
+        "temp": 0
+      },
+      "conditions": [],
+      "srdMonster": "goblin",
+      "cr": 0.25
     }
   },
   "party": {
@@ -178,6 +204,10 @@
       {
         "t": "2026-05-29T04:59:25.491Z",
         "summary": "Dawn after the Watchtower: party departed; Maximus studied the obsidian shard (origin still unknown)."
+      },
+      {
+        "t": "2026-05-29T08:48:36.224Z",
+        "summary": "Ambush in forest-of-allanar: combat began vs two goblins; Maximus landed a radiant hit on Goblin 1 (7->3 HP); Kiri spotted the flank. Fight ongoing."
       }
     ]
   }
