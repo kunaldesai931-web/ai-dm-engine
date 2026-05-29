@@ -1,0 +1,3 @@
+{"t":"2026-05-29T04:59:23.251Z","event":"chronicle.append","detail":{"op":"chronicle.append","buffered":1,"entry":{"t":"2026-05-29T04:59:23.246Z","text":"Party left the Old Watchtower at dawn"}}}
+{"t":"2026-05-29T04:59:24.006Z","event":"chronicle.append","detail":{"op":"chronicle.append","buffered":2,"entry":{"t":"2026-05-29T04:59:24.001Z","text":"Maximus examined the obsidian shard"}}}
+{"t":"2026-05-29T04:59:25.496Z","event":"chronicle.commit","detail":{"op":"chronicle.commit","entry":{"t":"2026-05-29T04:59:25.491Z","summary":"Dawn after the Watchtower: party departed; Maximus studied the obsidian shard (origin still unknown)."},"clearedFromBuffer":2,"totalEntries":1}}

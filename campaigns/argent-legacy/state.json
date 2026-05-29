@@ -86,7 +86,6 @@
   "npcs": {
     "sybilla": {
       "name": "Sybilla",
-      "role": "mentor / expert NPC",
       "ac": null,
       "hp": {
         "current": 19,
@@ -94,11 +93,11 @@
         "temp": 0
       },
       "conditions": [],
+      "role": "mentor / expert NPC",
       "disposition": "trust deepened after Watchtower victory"
     },
     "kiri": {
       "name": "Kiri",
-      "role": "fey companion / battlefield support",
       "ac": null,
       "hp": {
         "current": null,
@@ -106,6 +105,7 @@
         "temp": 0
       },
       "conditions": [],
+      "role": "fey companion / battlefield support",
       "disposition": "friendly ally"
     }
   },
@@ -171,5 +171,14 @@
   },
   "combat": {
     "active": false
+  },
+  "chronicle": {
+    "buffer": [],
+    "log": [
+      {
+        "t": "2026-05-29T04:59:25.491Z",
+        "summary": "Dawn after the Watchtower: party departed; Maximus studied the obsidian shard (origin still unknown)."
+      }
+    ]
   }
 }

@@ -14,6 +14,7 @@ import * as rules from './rules';
 import * as combat from './combat';
 import * as session from './session';
 import * as srd from './srd';
+import * as chronicle from './chronicle';
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -73,7 +74,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -127,6 +128,10 @@ function main() {
     case 'region leave': { const meta: any = state.meta; const from = meta.currentRegion; meta.currentRegion = null; result = { op: 'region.leave', from }; mutated = true; break; }
     case 'session start': result = session.sessionStart(state); break;
     case 'session end': result = session.sessionEnd(state); break;
+    case 'chronicle append': result = chronicle.append(state, { text: str(flags.text) }); mutated = true; break;
+    case 'chronicle compress': result = chronicle.compress(state); break;
+    case 'chronicle commit': result = chronicle.commit(state, { summary: str(flags.summary) }); mutated = true; break;
+    case 'chronicle read': result = chronicle.read(state); break;
     case 'campaign load': result = session.sessionStart(state); break;
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
@@ -153,6 +158,7 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   srd spell|weapon|condition|monster <name>
   region enter <id> | region leave
   session start | session end
+  chronicle append --text "<turn summary>" | chronicle compress | chronicle commit --summary "<text>" | chronicle read
   campaign list | campaign load`;
 
 try { main(); }
