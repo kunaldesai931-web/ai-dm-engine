@@ -11,6 +11,13 @@ export const HP = z.looseObject({
 
 export const SpellSlot = z.looseObject({ max: z.number(), used: z.number() });
 
+export const ChronicleBufferEntry = z.looseObject({ t: z.string(), text: z.string() });
+export const ChronicleLogEntry = z.looseObject({ t: z.string(), summary: z.string() });
+export const Chronicle = z.looseObject({
+  buffer: z.array(ChronicleBufferEntry).default([]),
+  log: z.array(ChronicleLogEntry).default([]),
+});
+
 export const Abilities = z.looseObject({
   str: z.number().nullable().optional(),
   dex: z.number().nullable().optional(),
@@ -52,6 +59,7 @@ export const State = z.looseObject({
   factions: z.record(z.string(), z.any()).optional(),
   threads: z.record(z.string(), z.any()).optional(),
   combat: z.any().optional(),
+  chronicle: Chronicle.optional(),
 }).superRefine((s, ctx) => {
   const all = { ...(s.pcs || {}), ...(s.npcs || {}) } as Record<string, any>;
   for (const [id, c] of Object.entries(all)) {
