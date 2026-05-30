@@ -165,8 +165,22 @@
   },
   "factions": {
     "vellmark-trading-company": {
+      "name": "Vellmark Trading Company",
+      "score": 0,
       "disposition": "employer",
-      "note": "Aldric's convoy belonged to them; their fate and Aldric's debt to them are unresolved"
+      "note": "Aldric's convoy belonged to them; their fate and Aldric's debt to them are unresolved. Score starts neutral — they haven't moved against him yet, but Corvin's payment trail leads here."
+    },
+    "threshold": {
+      "name": "The Threshold",
+      "score": -3,
+      "disposition": "hostile",
+      "note": "Directed operation behind the convoy enslavement. Aldric's memory recovery attempt triggered detection — he is now actively hunted."
+    },
+    "crale-community": {
+      "name": "Crale (town)",
+      "score": 0,
+      "disposition": "neutral",
+      "note": "Aldric is a stranger. Trust is earned by action, lost by drawing trouble to their doors."
     }
   },
   "threads": {

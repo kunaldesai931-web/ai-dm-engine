@@ -74,7 +74,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -160,6 +160,20 @@ function main() {
       result = { op: 'npc.add', id, npc, scaffolded: { persona: personaPath, memory: memoryPath } };
       mutated = true; break;
     }
+    case 'faction rep': {
+      const fid = str(flags.faction);
+      if (!fid) throw new EngineError('faction rep requires --faction <id>');
+      const factions: any = (state as any).factions || {};
+      if (!factions[fid]) throw new EngineError(`no faction "${fid}"; add it via state patch first`);
+      const delta = num(flags.delta);
+      const set = num(flags.set);
+      if (delta !== undefined) factions[fid].score = (factions[fid].score ?? 0) + delta;
+      else if (set !== undefined) factions[fid].score = set;
+      else throw new EngineError('faction rep requires --delta N or --set N');
+      factions[fid].score = Math.max(-5, Math.min(5, factions[fid].score));
+      result = { op: 'faction.rep', faction: fid, score: factions[fid].score, name: factions[fid].name || fid };
+      mutated = true; break;
+    }
     case 'region enter': result = session.regionEnter(state, { region: positional[2] || str(flags.region) }); mutated = true; break;
     case 'region leave': { const meta: any = state.meta; const from = meta.currentRegion; meta.currentRegion = null; result = { op: 'region.leave', from }; mutated = true; break; }
     case 'session start': result = session.sessionStart(state); break;
@@ -192,6 +206,7 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   combat start --participants id1,id2,... | combat next | combat end
   monster add --from <srd-monster> [--as ID]
   npc add --name "Full Name" [--id id-slug] [--role "description"]
+  faction rep --faction <id> (--delta N | --set N)   # score clamped to [-5, +5]
   srd spell|weapon|condition|monster <name>
   region enter <id> | region leave
   session start | session end

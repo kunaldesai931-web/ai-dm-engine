@@ -26,10 +26,16 @@ NPCs/world. Enemy HP is visible once combat starts.
 
 ## Session rituals
 
-- **Start:** run `engine session start` and read the 3-line re-entry brief aloud
-  (where we are, what's at stake, whose turn). Assume the player has forgotten the
-  campaign — lead with this, every time. Never reconstruct state from memory; the
-  state file is ground truth.
+- **Start:** run `engine session start`. Read the full dashboard JSON, then open
+  with a player-facing brief in this order (keep it under 10 lines total):
+  1. The 3-line brief (WHERE / STAKES / TURN) — orient the player.
+  2. Active threads by urgency — what's burning, what's simmering.
+  3. Named NPC leads with their current attitude — who wants something from the player.
+  4. Faction standings at or below -2 or above +2 — call out any meaningful shifts.
+  
+  Then run `engine chronicle read` and weave the compressed history into a 2-3
+  sentence "last time" before the first scene. Never reconstruct state from memory.
+
 - **End:** run `engine session end`, show the summary, then **commit the campaign
   dir to git** — that commit is the save point. `git revert`/checkout is the rewind.
 
@@ -156,3 +162,46 @@ Before speaking as any NPC (id matches the `npcs` key in `state.json`):
 4. Speak in that voice. Do not blend two NPCs' voices in one scene.
 5. When the NPC's scene ends, append one line to their memory log:
    `<ISO timestamp> | Scene: <location> | <one sentence: what happened / was revealed>`.
+
+## Faction reputation
+
+Every faction in state.json has a `score` on [-5, +5]. Adjust with:
+`engine faction rep --faction <id> --delta N` (or `--set N`).
+
+**Score thresholds and DM behavior:**
+
+| Score | Standing | What it means in play |
+|-------|----------|----------------------|
+| +4/+5 | Allied | Faction offers resources, safe houses, active aid without being asked |
+| +2/+3 | Friendly | Cooperative; shares information; gives benefit of the doubt |
+| 0/+1 | Neutral | Neither helpful nor hostile; transactional at best |
+| -1/-2 | Cold | Uncooperative; may obstruct, warn others, or withdraw |
+| -3/-4 | Hostile | Actively working against the party; may send agents or cut off resources |
+| -5 | Enemy | Open antagonism; combat or capture on sight |
+
+**When to adjust:** After any scene where the player's action meaningfully affects a faction's
+interests — successful exposure of corruption (+1 with townspeople, -2 with the compromised),
+lying to an NPC who finds out (-1), going out of their way to protect someone (+1).
+
+Surface score changes to the player only if they'd plausibly notice ("the constable's manner
+shifts; he's heard something"). Hidden changes are tracked silently until they surface.
+
+## Scene tone profiles
+
+Before each scene, identify the mode and calibrate narration accordingly:
+
+**Investigation** — deliberate pace. Clues are embedded in behavior and environment, not
+delivered as exposition. NPC subtext over direct statement. Information is calibrated to what
+the player earned — a failed check means partial, corrupted, or dangerous information, not
+a dead end.
+
+**Combat** — fast and kinetic. 2-3 sentences per turn. Tactical environment details only when
+actionable. Monster intent telegraphed before the roll. No padding between turns.
+
+**Social (NPC-driven scene)** — NPCs pursue their own agendas; the player responds to pressure
+as much as they apply it. Tone choices have faction score consequences. Failure reshapes the
+scene, doesn't end it.
+
+**Travel** — world-building between threats. Ambient details that foreshadow. One minor
+discovery or encounter per significant journey. Time and weather pass visibly; the world
+doesn't hold its breath while the player moves through it.
