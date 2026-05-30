@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-29T08:48:10.185Z",
+  "source": "auto-postool",
+  "partial": false,
+  "phase": null,
+  "phase_name": null,
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "auto-checkpoint",
+  "completed_tasks": [],
+  "remaining_tasks": [],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [],
+  "uncommitted_files": [
+    {
+      "status": "M",
+      "path": "campaigns/argent-legacy/log.jsonl"
+    },
+    {
+      "status": "M",
+      "path": "campaigns/argent-legacy/state.json"
+    },
+    {
+      "status": "??",
+      "path": ".planning/"
+    }
+  ],
+  "next_action": null,
+  "context_notes": "Recent commits:\n6889334 feat(campaign): complete Maximus ability scores and AC\n8092dde docs: add chronicle and NPC protocols to CLAUDE.md\ne928d01 docs: add DM_GUIDE.md for Argent Legacy\n4ca528d feat: add NPC persona system (template + Sybilla, Kiri)\nb7864db feat(engine): wire chronicle append/compress/commit/read into CLI"
+}

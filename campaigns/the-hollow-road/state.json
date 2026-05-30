@@ -1,0 +1,145 @@
+{
+  "meta": {
+    "campaign": "The Hollow Road",
+    "system": "dnd5e",
+    "edition": "5.1-SRD",
+    "tone": "high fantasy",
+    "canonVersion": "1.0",
+    "currentRegion": "greywater-crossing",
+    "worldTime": "Dusk, the first day",
+    "sessionNumber": 1
+  },
+  "rng": {
+    "seed": "hollow-road-001",
+    "cursor": 17
+  },
+  "houseRules": {
+    "noInventedNumbers": true,
+    "turnLoop": "narrate -> resolve via engine -> reconcile state"
+  },
+  "pcs": {
+    "aldric": {
+      "name": "Aldric Thorne",
+      "class": "Fighter",
+      "level": 1,
+      "abilities": {
+        "str": 16,
+        "dex": 13,
+        "con": 15,
+        "int": 10,
+        "wis": 12,
+        "cha": 8
+      },
+      "profBonus": 2,
+      "ac": 16,
+      "speed": 30,
+      "initiativeMod": 1,
+      "hp": {
+        "current": 12,
+        "max": 12,
+        "temp": 0
+      },
+      "saves": [
+        "str",
+        "con"
+      ],
+      "skills": {
+        "athletics": "proficient",
+        "perception": "proficient",
+        "intimidation": "proficient",
+        "survival": "proficient"
+      },
+      "spellSlots": {},
+      "knownSpells": [],
+      "features": [
+        "fighting-style-great-weapon-fighting",
+        "second-wind"
+      ],
+      "conditions": [],
+      "effects": [],
+      "inventory": [
+        {
+          "id": "greatsword",
+          "qty": 1
+        },
+        {
+          "id": "chain-mail",
+          "qty": 1
+        },
+        {
+          "id": "handaxe",
+          "qty": 2
+        },
+        {
+          "id": "explorers-pack",
+          "qty": 1
+        },
+        {
+          "id": "caravan-guards-token",
+          "qty": 1,
+          "note": "Iron seal of the Vellmark Trading Company. The only thing left of the convoy."
+        }
+      ],
+      "xp": 50,
+      "race": "Human",
+      "background": "Caravan guard"
+    }
+  },
+  "npcs": {
+    "wolf-1": {
+      "name": "Wolf",
+      "ac": 13,
+      "initiativeMod": 2,
+      "hp": {
+        "current": 0,
+        "max": 11,
+        "temp": 0
+      },
+      "conditions": [
+        "unconscious"
+      ],
+      "srdMonster": "wolf",
+      "cr": 0.25
+    }
+  },
+  "party": {
+    "gold": 12
+  },
+  "quests": {
+    "what-happened-on-the-road": {
+      "status": "ongoing",
+      "objective": "Find out what destroyed the Vellmark convoy on the Hollow Road",
+      "clue": "Aldric is the only survivor and doesn't remember the final hour",
+      "stake": "Truth, and whatever is still out there on the road"
+    }
+  },
+  "factions": {
+    "vellmark-trading-company": {
+      "disposition": "employer",
+      "note": "Aldric's convoy belonged to them; their fate and Aldric's debt to them are unresolved"
+    }
+  },
+  "threads": {
+    "the-missing-hour": {
+      "intro": "Aldric woke at Greywater Crossing with no memory of how the convoy fell",
+      "clues": [
+        "Iron company token in his hand",
+        "No bodies found at the wreck"
+      ],
+      "hidden": "What took the convoy, and why Aldric was spared",
+      "urgency": "high"
+    }
+  },
+  "combat": {
+    "active": false
+  },
+  "chronicle": {
+    "buffer": [],
+    "log": [
+      {
+        "t": "2026-05-30T03:14:07.458Z",
+        "summary": "Session 1 complete: convoy mystery established, threshold identified as directed operation, three leads open (Sera, Corvin, the clearing)"
+      }
+    ]
+  }
+}
