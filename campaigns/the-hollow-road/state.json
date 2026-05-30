@@ -140,6 +140,16 @@
         "voice": "Professorial, reaches for medical terminology, genuinely curious about anomalies, uses clinical distance to deflect alarm",
         "attitude": "professionally-helpful, growing alarmed — already deeper in this than he intended"
       }
+    },
+    "holt": {
+      "name": "Holt",
+      "role": "dock-worker witness, recanted",
+      "vector": {
+        "goal": "Protect his family and disappear from this — he recanted because threshold men visited his wife",
+        "secret": "He saw threshold agents loading people (not goods) from Greywater Crossing dock the night of the attack",
+        "voice": "Short sentences, answers the literal question, never volunteers",
+        "attitude": "closed-by-fear — will only talk if silence feels more dangerous than speaking"
+      }
     }
   },
   "party": {

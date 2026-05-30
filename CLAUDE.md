@@ -124,6 +124,26 @@ world has momentum and does not wait for player indecision.
 - **Failure has texture.** A failed check doesn't mean nothing happens — something happens the
   player didn't want, or information arrives corrupted, partial, or dangerous.
 
+## NPC initialization protocol
+
+Whenever an NPC is introduced — whether via `monster add`, narrative introduction, or mention
+in dialogue — immediately check whether they have a `vector` in state.json and a persona file.
+
+**For any named NPC, recurring combatant, or creature with a speaking role:**
+
+1. Run `engine npc add --name "Full Name" --id id-slug --role "one-phrase role"` (skipped if
+   they already exist in state). This creates the state entry, scaffolds the persona.md, and
+   stubs the memory.log.
+2. Fill in the vector via `state patch --set npcs.id-slug.vector.goal="..." --set ...` (all
+   four fields: goal, secret, voice, attitude).
+3. Write the persona.md with backstory, DM hooks, and speech quirks.
+
+Do this **before their first line of dialogue** — it takes 60 seconds and makes the difference
+between furniture and a live wire.
+
+Skip vectors for: anonymous SRD monsters that die in the scene with no name and no speaking
+role (wolves, bandits, skeletons). Give vectors to everything else.
+
 ## NPC protocol — distinct voices
 
 Before speaking as any NPC (id matches the `npcs` key in `state.json`):

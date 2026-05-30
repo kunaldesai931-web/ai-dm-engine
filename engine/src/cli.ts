@@ -74,7 +74,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -124,6 +124,42 @@ function main() {
     case 'combat next': result = combat.nextTurn(state); mutated = true; break;
     case 'combat end': result = combat.endCombat(state); mutated = true; break;
     case 'monster add': result = combat.addMonster(state, { from: str(flags.from)!, as: str(flags.as) }); mutated = true; break;
+    case 'npc add': {
+      const id = str(flags.id) || (str(flags.name) || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      if (!id) throw new EngineError('npc add requires --name or --id');
+      if (state.npcs[id]) throw new EngineError(`NPC "${id}" already exists; use state patch to update`);
+      const npc: any = {
+        name: str(flags.name) || id,
+        ...(str(flags.role) ? { role: str(flags.role) } : {}),
+        vector: { goal: '', secret: '', voice: '', attitude: '' },
+      };
+      state.npcs[id] = npc;
+      const npcDir = path.join(campaign.dir, 'npcs');
+      if (!fs.existsSync(npcDir)) fs.mkdirSync(npcDir, { recursive: true });
+      const personaPath = path.join(npcDir, `${id}.persona.md`);
+      const memoryPath = path.join(npcDir, `${id}.memory.log`);
+      if (!fs.existsSync(personaPath)) {
+        fs.writeFileSync(personaPath, [
+          '---',
+          `id: ${id}`,
+          `name: ${npc.name}`,
+          `role: ${str(flags.role) || ''}`,
+          'voice: ""',
+          'motivation: ""',
+          'secrets: ""',
+          'relationships: []',
+          'speech_quirks: ""',
+          '---',
+          '',
+          '## Notes',
+          '',
+          '',
+        ].join('\n'));
+      }
+      if (!fs.existsSync(memoryPath)) fs.writeFileSync(memoryPath, '# No scenes yet.\n');
+      result = { op: 'npc.add', id, npc, scaffolded: { persona: personaPath, memory: memoryPath } };
+      mutated = true; break;
+    }
     case 'region enter': result = session.regionEnter(state, { region: positional[2] || str(flags.region) }); mutated = true; break;
     case 'region leave': { const meta: any = state.meta; const from = meta.currentRegion; meta.currentRegion = null; result = { op: 'region.leave', from }; mutated = true; break; }
     case 'session start': result = session.sessionStart(state); break;
@@ -155,6 +191,7 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   state patch [--file patch.json] [--set a.b=val ...]
   combat start --participants id1,id2,... | combat next | combat end
   monster add --from <srd-monster> [--as ID]
+  npc add --name "Full Name" [--id id-slug] [--role "description"]
   srd spell|weapon|condition|monster <name>
   region enter <id> | region leave
   session start | session end
