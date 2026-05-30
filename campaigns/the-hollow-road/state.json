@@ -7,7 +7,7 @@
     "canonVersion": "1.0",
     "currentRegion": "greywater-crossing",
     "worldTime": "Dusk, the first day",
-    "sessionNumber": 1
+    "sessionNumber": 2
   },
   "rng": {
     "seed": "hollow-road-001",
@@ -100,6 +100,46 @@
       ],
       "srdMonster": "wolf",
       "cr": 0.25
+    },
+    "sera": {
+      "name": "Sera Vane",
+      "role": "local-investigator",
+      "vector": {
+        "goal": "Expose the conspiracy publicly — sunlight, not a quiet deal or a body in a ditch",
+        "secret": "The threshold has an informant in Crale's market committee; she suspects who but can't prove it",
+        "voice": "Direct, hands busy when nervous, asks before she gives anything",
+        "attitude": "wary-ally — Aldric's token is proof she needs, but she doesn't trust his judgment yet"
+      }
+    },
+    "mira-voss": {
+      "name": "Mira Voss",
+      "role": "token-smith-widow",
+      "vector": {
+        "goal": "Know whether her husband's death was an accident — and what the ledger means",
+        "secret": "She gave a 'company auditor' full access to Caspar's workshop records; they were threshold agents erasing traces",
+        "voice": "Soft-spoken, deflects with hospitality, becomes precise and careful when she commits to a statement",
+        "attitude": "fearful-and-desperate — has been watched since the auditor visit; needs protection but doesn't understand from what"
+      }
+    },
+    "corvin": {
+      "name": "Corvin",
+      "role": "former-vellmark-factor",
+      "vector": {
+        "goal": "Disappear cleanly — will trade information for a head start and a closed mouth",
+        "secret": "He specified the Hollow Road route for Aldric's convoy on a separate payment; doesn't know why Aldric survived",
+        "voice": "Charming, self-deprecating humor, never holds eye contact when Vellmark comes up",
+        "attitude": "transactional — sees Aldric as a threat he might be able to make useful"
+      }
+    },
+    "wendel": {
+      "name": "Wendel",
+      "role": "hedge-doctor",
+      "vector": {
+        "goal": "Help patients without becoming a target — caught between duty and the survival instinct",
+        "secret": "Has been reporting unusual injuries to a civic contact he trusts; that contact may be compromised",
+        "voice": "Professorial, reaches for medical terminology, genuinely curious about anomalies, uses clinical distance to deflect alarm",
+        "attitude": "professionally-helpful, growing alarmed — already deeper in this than he intended"
+      }
     }
   },
   "party": {
