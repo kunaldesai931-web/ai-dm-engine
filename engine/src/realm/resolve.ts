@@ -230,6 +230,10 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
     }
   }
 
+  // Treasury never goes negative: event/edict losses floor here (income and battle
+  // sacks already floor at their own sites). The unfunded gap is simply absorbed.
+  realm.resources.treasury = Math.max(0, realm.resources.treasury);
+
   // 7. Clocks — derived pressure with counter-pulls, then clamp (surfacing it).
   const tax = realm.policies.tax;
 

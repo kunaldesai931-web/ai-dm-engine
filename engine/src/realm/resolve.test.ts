@@ -183,3 +183,12 @@ test('WAR: a battle tick consumes three dice (one event draw + two battle dice)'
   const { realm } = tick(before, { eventTable: QUIET });
   assert.equal(realm.rng.cursor - before.rng.cursor, 3);
 });
+
+test('INVARIANT: an event that costs more gold than the treasury floors treasury at 0', () => {
+  const RAID: RealmEvent[] = [{ id: 'raid', title: 'Raid', weight: 1, kind: 'auto',
+    effects: { resources: { treasury: -50 } } }];
+  const r = validRealm({ resources: { treasury: 10, food: { stock: 80, production: 30, consumption: 26 }, manpower: 0 } });
+  const { realm } = tick(r, { eventTable: RAID });
+  assert.equal(realm.resources.treasury, 0);
+  assert.doesNotThrow(() => parseRealm(realm)); // must still be a valid, persistable state
+});
