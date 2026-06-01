@@ -9,7 +9,7 @@ export const UPKEEP_BASE = 10;
 // Holdings cost real administration: upkeep scales steeply enough with the realm
 // that expansion is a trade-off, not free money. (Tuned via the balance shakedown.)
 export const HOLDING_UPKEEP_PER_TIER = 5;
-export const ARMY_UPKEEP_PER_STRENGTH = 1;
+export const ARMY_UPKEEP_PER_EFFECTIVE = 1; // upkeep per point of strength x quality
 
 // Per-turn yields a built holding contributes, scaled by tier. Gold yields flow
 // into income each tick; food/manpower yields are applied once when the holding
@@ -45,10 +45,11 @@ export function computeIncome(realm: Pick<TRealm, 'policies' | 'holdings' | 'arm
   const mult = TAX_INCOME_MULT[realm.policies.tax];
   const gross = Math.round(taxable * mult);
   const taxModifier = gross - taxable;
+  const quality = (realm.army as any).quality ?? 1;
   const upkeep =
     UPKEEP_BASE +
     realm.holdings.reduce((sum, h) => sum + HOLDING_UPKEEP_PER_TIER * h.tier, 0) +
-    realm.army.strength * ARMY_UPKEEP_PER_STRENGTH;
+    Math.round(realm.army.strength * quality * ARMY_UPKEEP_PER_EFFECTIVE);
   const net = gross - upkeep;
   return { base, holdings, taxModifier, gross, upkeep, net };
 }

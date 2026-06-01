@@ -83,3 +83,9 @@ test('resolveFood: consumption beyond stock + production floors stock at 0 and r
   assert.equal(f.stock, 0);
   assert.equal(f.shortage, 13);
 });
+
+test('computeIncome: a higher-quality army costs more upkeep at equal strength', () => {
+  const levy  = computeIncome({ policies: { tax: 'normal' }, holdings: [], army: { strength: 20, quality: 1.0 } });
+  const elite = computeIncome({ policies: { tax: 'normal' }, holdings: [], army: { strength: 20, quality: 2.0 } });
+  assert.ok(elite.upkeep > levy.upkeep, `elite ${elite.upkeep} > levy ${levy.upkeep}`);
+});
