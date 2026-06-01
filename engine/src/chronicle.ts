@@ -2,7 +2,7 @@
 // summary per turn; every ~8 turns it compresses the buffer into a single logged
 // summary. Engine owns the mutation so chronicle inherits atomic-save + audit log +
 // the git-commit save-point ritual (state.json is the single source of truth).
-import { EngineError } from './errors';
+import { EngineError } from './core/errors';
 import type { TState } from './types';
 
 interface Chron { buffer: { t: string; text: string }[]; log: { t: string; summary: string }[]; }

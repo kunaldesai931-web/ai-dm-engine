@@ -1,8 +1,8 @@
 // Combat tracking. HP lives on the sheets (single source of truth), so it carries
 // across attacks automatically — the registry just holds initiative order and turn.
-import { makeRoller } from './rng';
-import { rollD20 } from './dice';
-import { EngineError } from './errors';
+import { makeRoller } from './core/rng';
+import { rollD20 } from './core/dice';
+import { EngineError } from './core/errors';
 import { getActor, abilityMod } from './character';
 import { getMonster } from './srd';
 import type { TState } from './types';

@@ -4,9 +4,9 @@
 // The narrator reads the printed JSON; it never invents a number a tool didn't return.
 import fs from 'node:fs';
 import path from 'node:path';
-import { EngineError } from './errors';
-import { rollNotation } from './dice';
-import { makeRoller } from './rng';
+import { EngineError } from './core/errors';
+import { rollNotation } from './core/dice';
+import { makeRoller } from './core/rng';
 import { resolveCampaign, loadState, saveState, logEvent, applyDelta, CAMPAIGNS_DIR } from './state';
 import { parseState } from './types';
 import { getActor } from './character';

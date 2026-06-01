@@ -1,6 +1,6 @@
 // Character-sheet helpers. These refuse to guess: a missing number is an error, not
 // an invented value (mechanical honesty over convenience).
-import { EngineError } from './errors';
+import { EngineError } from './core/errors';
 import type { TState, TCharacter } from './types';
 
 export const SKILL_ABILITY: Record<string, string> = {

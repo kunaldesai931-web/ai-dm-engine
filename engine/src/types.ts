@@ -1,7 +1,7 @@
 // Canonical state schema (zod). looseObject/record preserve descriptive fields the
 // engine doesn't model, while invariants are enforced in a refinement pass.
 import { z } from 'zod';
-import { EngineError } from './errors';
+import { EngineError } from './core/errors';
 
 export const HP = z.looseObject({
   current: z.number().nullable().optional(),

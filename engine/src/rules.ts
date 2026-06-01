@@ -1,8 +1,8 @@
 // 5e SRD mechanics. Pure operations over state; each returns a structured result
 // (with component dice) the narrator reads. No operation invents a number.
-import { makeRoller } from './rng';
-import { rollD20, rollNotation } from './dice';
-import { EngineError } from './errors';
+import { makeRoller } from './core/rng';
+import { rollD20, rollNotation } from './core/dice';
+import { EngineError } from './core/errors';
 import { getActor, abilityMod, profBonus, skillMod, saveMod } from './character';
 import { getSpell, getWeapon } from './srd';
 import type { TState, TCharacter } from './types';

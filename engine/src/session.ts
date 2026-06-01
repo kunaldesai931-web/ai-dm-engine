@@ -1,5 +1,5 @@
 // Session & region helpers: re-entry brief, session end summary, region transitions.
-import { EngineError } from './errors';
+import { EngineError } from './core/errors';
 import type { TState } from './types';
 
 const URGENCY_ORDER: Record<string, number> = { high: 0, medium: 1, normal: 2, low: 3 };
