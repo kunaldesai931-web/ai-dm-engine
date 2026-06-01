@@ -58,3 +58,16 @@ test('sinceLastDigest passes through verbatim', () => {
   const d = buildDigest(realmWith(), ['raised taxes', 'market built']);
   assert.deepEqual(d.sinceLastDigest, ['raised taxes', 'market built']);
 });
+
+test('digest reports peace when there is no war and low threat', () => {
+  const d = buildDigest(realmWith({ threat: 0, war: null }));
+  assert.equal(typeof d.war, 'string');
+  assert.match(d.war, /peace/i);
+  assert.doesNotMatch(d.war, /\d/);
+});
+
+test('digest reports an incoming invasion as a war descriptor and a crisis', () => {
+  const d = buildDigest(realmWith({ threat: 0, war: { invader: 'the Ashmark horde', force: 40, strikesIn: 2 } }));
+  assert.match(d.war, /massing|border|horde|invasion/i);
+  assert.ok(d.crises.some((c) => /invasion|war|horde/i.test(c)), `crises ${JSON.stringify(d.crises)}`);
+});

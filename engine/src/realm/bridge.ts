@@ -3,6 +3,7 @@
 // spreadsheet. v1 is one-directional (sim → RPG, read-only); the digest shape is
 // fixed now so v2's reverse direction doesn't churn it.
 import type { TRealm } from './schema';
+import { INVASION_THRESHOLD } from './war';
 
 export interface RealmDigest {
   realm: string;
@@ -10,6 +11,7 @@ export interface RealmDigest {
   treasuryTier: string;
   stability: string;
   unrest: string;
+  war: string;
   crises: string[];
   sinceLastDigest: string[];
 }
@@ -50,14 +52,25 @@ function unrestWord(unrest: number): string {
   ]);
 }
 
-function crisesFrom(realm: Pick<TRealm, 'resources' | 'clocks'>): string[] {
+function crisesFrom(realm: any): string[] {
   const crises: string[] = [];
   if (realm.resources.treasury <= 0) crises.push('the treasury is empty');
   const food = realm.resources.food;
   if (food.stock <= 0 && food.consumption > food.production) crises.push('grain shortage across the holdings');
   if (realm.clocks.unrest >= 7) crises.push('unrest near open revolt');
   if (realm.clocks.stability <= -3) crises.push('the realm is fracturing');
+  if (realm.war) crises.push(`${realm.war.invader} threatens the realm`);
   return crises;
+}
+
+function warWord(realm: any): string {
+  if (realm.war) {
+    return realm.war.strikesIn > 0
+      ? `${realm.war.invader} is massing on the border`
+      : 'the realm is under siege';
+  }
+  if ((realm.threat ?? 0) >= INVASION_THRESHOLD / 2) return 'distant war-drums';
+  return 'peace holds';
 }
 
 export function buildDigest(realm: TRealm, sinceLastDigest: string[] = []): RealmDigest {
@@ -67,6 +80,7 @@ export function buildDigest(realm: TRealm, sinceLastDigest: string[] = []): Real
     treasuryTier: treasuryTier(realm.resources.treasury),
     stability: stabilityWord(realm.clocks.stability),
     unrest: unrestWord(realm.clocks.unrest),
+    war: warWord(realm),
     crises: crisesFrom(realm),
     sinceLastDigest,
   };

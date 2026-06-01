@@ -143,6 +143,19 @@ export function run(argv: string[]): any {
       mutated = true; break;
     }
 
+    case 'recruit': {
+      const n = num(flags.strength);
+      if (n == null || n <= 0) throw new EngineError('realm recruit requires --strength N (positive)');
+      realm.pending.push({ kind: 'recruit', strength: n });
+      result = { op: 'realm.recruit', queued: n, pending: realm.pending };
+      mutated = true; break;
+    }
+    case 'drill': {
+      realm.pending.push({ kind: 'drill' });
+      result = { op: 'realm.drill', pending: realm.pending };
+      mutated = true; break;
+    }
+
     case 'tick': {
       const { realm: next, report } = tick(realm);
       saveJson(file, next, parseRealm);
@@ -214,6 +227,8 @@ const USAGE = `realm <command> [--in <dir>] [flags]
   policy --tax low|normal|high
   build  <structure>                       # queue a build into pending[]
   edict  <type> [--gold N] [--unrest N]     # queue a discrete action
+  recruit --strength N                      # queue: muster N strength (manpower + gold)
+  drill                                     # queue: train the army (gold -> +quality)
   tick                                      # RESOLVE the turn (the engine moment)
   choose --option <id>                      # answer an active event
   patch  [--file patch.json] [--set a.b=val ...]
