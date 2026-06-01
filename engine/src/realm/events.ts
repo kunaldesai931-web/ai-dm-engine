@@ -26,7 +26,8 @@ export interface RealmEvent {
 // The v1 event table. Weights are relative; the draw is a uniform pick over the
 // summed weight. Auto events resolve on the tick; choice events pause for input.
 export const EVENT_TABLE: RealmEvent[] = [
-  { id: 'quiet-season', title: 'A quiet season', weight: 4, kind: 'auto', effects: {} },
+  { id: 'quiet-season', title: 'A quiet season', weight: 4, kind: 'auto',
+    effects: { clocks: { unrest: -1 } } }, // calm seasons cool tempers
   { id: 'good-harvest', title: 'A bountiful harvest', weight: 2, kind: 'auto',
     effects: { clocks: { prosperity: 1 }, resources: { food: { stock: 15 } } } },
   { id: 'bandit-raid', title: 'Bandits raid the roads', weight: 2, kind: 'auto',

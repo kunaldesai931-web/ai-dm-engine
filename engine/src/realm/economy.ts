@@ -6,7 +6,9 @@ import type { TRealm, TTaxLevel } from './schema';
 
 export const BASE_INCOME = 20;
 export const UPKEEP_BASE = 10;
-export const HOLDING_UPKEEP_PER_TIER = 2;
+// Holdings cost real administration: upkeep scales steeply enough with the realm
+// that expansion is a trade-off, not free money. (Tuned via the balance shakedown.)
+export const HOLDING_UPKEEP_PER_TIER = 5;
 export const ARMY_UPKEEP_PER_STRENGTH = 1;
 
 // Per-turn yields a built holding contributes, scaled by tier. Gold yields flow

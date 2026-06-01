@@ -98,3 +98,37 @@ test('an income shortfall drives unrest higher than a balanced realm', () => {
   const broke = tick(validRealm({ resources: { treasury: 0, food: { stock: 80, production: 30, consumption: 26 }, manpower: 0 }, army: { strength: 50 } }), { eventTable: QUIET }).realm;
   assert.ok(broke.clocks.unrest > balanced.clocks.unrest, `broke ${broke.clocks.unrest} > balanced ${balanced.clocks.unrest}`);
 });
+
+// --- feedback loops (balance pass): clocks must regress, not ratchet ---
+
+test('FEEDBACK: unrest decays when the realm is calm and well-run', () => {
+  const r = validRealm({ clocks: { stability: 0, unrest: 5, prosperity: 0 }, policies: { tax: 'low' } });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.clocks.unrest < 5, `unrest ${realm.clocks.unrest} cooled from 5`);
+});
+
+test('FEEDBACK: sustained high unrest erodes stability', () => {
+  const r = validRealm({ clocks: { stability: 0, unrest: 8, prosperity: 0 } });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.clocks.stability < 0, `stability ${realm.clocks.stability} eroded by unrest`);
+});
+
+test('FEEDBACK: a content, prosperous realm consolidates stability', () => {
+  const r = validRealm({ clocks: { stability: 0, unrest: 0, prosperity: 3 }, policies: { tax: 'low' } });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.clocks.stability > 0, `stability ${realm.clocks.stability} consolidated`);
+});
+
+test('FEEDBACK: prosperity erodes when the realm lives beyond its means', () => {
+  const r = validRealm({ clocks: { stability: 0, unrest: 0, prosperity: 3 },
+    resources: { treasury: 100, food: { stock: 80, production: 10, consumption: 30 }, manpower: 0 } });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.clocks.prosperity < 3, `prosperity ${realm.clocks.prosperity} faded`);
+});
+
+test('FEEDBACK: building grows food consumption (the realm gains population)', () => {
+  const r = validRealm({ holdings: [], pending: [{ kind: 'build', id: 'granary' }],
+    resources: { treasury: 100, food: { stock: 80, production: 30, consumption: 26 }, manpower: 0 } });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.resources.food.consumption > 26, `consumption ${realm.resources.food.consumption} grew past 26`);
+});

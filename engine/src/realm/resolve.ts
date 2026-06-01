@@ -7,13 +7,34 @@ import { computeIncome, applyIncome, resolveFood, HOLDING_YIELDS, type IncomeBre
 import { drawEvent, applyEventEffects, EVENT_TABLE, type RealmEvent } from './events';
 import type { TRealm } from './schema';
 
-// Derived clock pressures — named so the model can be tuned in one place.
+// Derived clock pressures — named so the model can be tuned in one place. The
+// clocks must REGRESS, not ratchet: every pusher has a counter-pull so a well-run
+// realm cools and a mismanaged one heats up, instead of saturating and sticking.
+//
+// Unrest — pushers:
 const TAX_UNREST_HIGH = 1;             // high tax breeds resentment
 const SHORTFALL_UNREST_DIVISOR = 10;   // +1 unrest per 10 gold of unfunded upkeep
-const SHORTFALL_STABILITY_AT = 30;     // a large shortfall also cracks stability
 const SHORTAGE_UNREST_DIVISOR = 8;     // +1 unrest per 8 food of shortage
+// Unrest — relievers (the missing feedback):
+const TAX_UNREST_LOW_RELIEF = 1;       // a light hand on the purse calms the realm
+const PROSPERITY_RELIEF_AT = 3;        // a thriving populace (prosperity ≥ this) cools by 1
+const CALM_COOLDOWN = 1;               // tempers cool when there's no deficit/famine/high tax
+//
+// Stability — coupled to unrest so a maxed unrest clock has real teeth, and so a
+// content realm can recover (the clock was inert before):
+const SHORTFALL_STABILITY_AT = 30;     // a large shortfall cracks stability
 const SHORTAGE_STABILITY_AT = 20;      // a famine cracks stability
-const SURPLUS_PROSPERITY_AT = 20;      // a fat surplus nudges prosperity up
+const UNREST_EROSION_AT = 7;           // sustained high unrest erodes the throne
+const CONTENT_UNREST_MAX = 2;          // a calm (unrest ≤ this) ...
+const CONTENT_PROSPERITY_MIN = 2;      // ... and prosperous realm consolidates stability
+//
+// Prosperity — surplus grows it; living beyond your means erodes it (no more
+// sticking at the cap forever):
+const SURPLUS_PROSPERITY_AT = 20;      // a fat food surplus nudges prosperity up
+//
+// Population — every built holding grows food consumption, so a sprawling realm
+// can't bank an infinite surplus (the economic counter-pull on growth):
+const POP_CONSUMPTION_PER_HOLDING = 3;
 
 const CLOCK_RANGE = {
   stability: [-5, 5],
@@ -116,6 +137,9 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
       const yields = HOLDING_YIELDS[item.id];
       if (yields?.food) realm.resources.food.production += yields.food * tier;
       if (yields?.manpower) realm.resources.manpower += yields.manpower * tier;
+      // The realm gains population: more mouths to feed each turn. This is the
+      // counter-pull that stops a big realm banking an infinite food surplus.
+      realm.resources.food.consumption += POP_CONSUMPTION_PER_HOLDING;
       builds.push(item.id);
     } else if (item.kind === 'edict' && item.effects) {
       const next = applyEventEffects(realm, item.effects);
@@ -125,18 +149,30 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
   }
   realm.pending = [];
 
-  // 6. Clocks — derived pressure, then clamp (surfacing the clamp).
-  if (realm.policies.tax === 'high') realm.clocks.unrest += TAX_UNREST_HIGH;
-  if (shortfall > 0) {
-    realm.clocks.unrest += Math.ceil(shortfall / SHORTFALL_UNREST_DIVISOR);
-    if (shortfall >= SHORTFALL_STABILITY_AT) realm.clocks.stability -= 1;
+  // 6. Clocks — derived pressure with counter-pulls, then clamp (surfacing it).
+  const tax = realm.policies.tax;
+
+  // 6a. Unrest — pushers then relievers, so the clock cools when well-run.
+  if (tax === 'high') realm.clocks.unrest += TAX_UNREST_HIGH;
+  if (shortfall > 0) realm.clocks.unrest += Math.ceil(shortfall / SHORTFALL_UNREST_DIVISOR);
+  if (food.shortage > 0) realm.clocks.unrest += Math.ceil(food.shortage / SHORTAGE_UNREST_DIVISOR);
+  const calm = shortfall === 0 && food.shortage === 0;
+  if (tax === 'low') realm.clocks.unrest -= TAX_UNREST_LOW_RELIEF;
+  if (realm.clocks.prosperity >= PROSPERITY_RELIEF_AT) realm.clocks.unrest -= 1;
+  if (calm && tax !== 'high') realm.clocks.unrest -= CALM_COOLDOWN;
+
+  // 6b. Stability — shocks crack it; sustained unrest erodes it; a content,
+  // prosperous realm consolidates. (Evaluated against this turn's unrest.)
+  if (shortfall >= SHORTFALL_STABILITY_AT) realm.clocks.stability -= 1;
+  if (food.shortage >= SHORTAGE_STABILITY_AT) realm.clocks.stability -= 1;
+  if (realm.clocks.unrest >= UNREST_EROSION_AT) realm.clocks.stability -= 1;
+  else if (realm.clocks.unrest <= CONTENT_UNREST_MAX && realm.clocks.prosperity >= CONTENT_PROSPERITY_MIN) {
+    realm.clocks.stability += 1;
   }
-  if (food.shortage > 0) {
-    realm.clocks.unrest += Math.ceil(food.shortage / SHORTAGE_UNREST_DIVISOR);
-    if (food.shortage >= SHORTAGE_STABILITY_AT) realm.clocks.stability -= 1;
-  } else if (food.surplus >= SURPLUS_PROSPERITY_AT) {
-    realm.clocks.prosperity += 1;
-  }
+
+  // 6c. Prosperity — a fat surplus grows it; living beyond your means erodes it.
+  if (food.surplus >= SURPLUS_PROSPERITY_AT) realm.clocks.prosperity += 1;
+  else if (food.surplus <= 0 && realm.clocks.prosperity > 0) realm.clocks.prosperity -= 1;
 
   const { clocks: clampedClocks, clamps } = clampClocks(realm.clocks);
   realm.clocks = clampedClocks;
