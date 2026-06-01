@@ -46,8 +46,8 @@ const WIN_CASUALTY_FRAC = 0.2;
 const LOSS_CASUALTY_FRAC = 0.6;
 const VETERANCY_GAIN = 0.1;
 const SACK_TREASURY_FRAC = 0.4;
-const SACK_UNREST = 3;
-const SACK_STABILITY = 2;
+const SACK_UNREST = 3;     // unrest GAINED on a sack (added)
+const SACK_STABILITY = 2;  // stability LOST on a sack (subtracted)
 
 const CLOCK_RANGE = {
   stability: [-5, 5],
@@ -266,6 +266,7 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
     event: { id: drawn.id, title: drawn.title, kind: drawn.kind, applied },
     builds,
     clockDelta: {
+      // net change this turn, including war consequences (sack/win mutate clocks before the clocks step)
       stability: realm.clocks.stability - before.stability,
       unrest: realm.clocks.unrest - before.unrest,
       prosperity: realm.clocks.prosperity - before.prosperity,
