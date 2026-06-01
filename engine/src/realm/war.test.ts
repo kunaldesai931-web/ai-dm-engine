@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { growThreat, announceInvasion, resolveBattle, INVASION_THRESHOLD, INVASION_WARNING_TURNS } from './war';
+import { computeRecruit, RECRUIT_MANPOWER_COST, RECRUIT_GOLD_COST } from './war';
 import { makeRoller, type Roller } from '../core/rng';
 
 test('growThreat rises by the base amount in a poor, small realm', () => {
@@ -60,4 +61,26 @@ test('resolveBattle is deterministic for a fixed seed and cursor', () => {
   const a = resolveBattle(10, 1.0, 10, makeRoller({ seed: 'war', cursor: 3 }));
   const b = resolveBattle(10, 1.0, 10, makeRoller({ seed: 'war', cursor: 3 }));
   assert.deepEqual(a, b);
+});
+
+test('computeRecruit: full request when affordable', () => {
+  const r = computeRecruit(10, /*manpower*/ 100, /*gold*/ 100, /*requested*/ 5);
+  assert.equal(r.recruited, 5);
+  assert.equal(r.manpowerSpent, 5 * RECRUIT_MANPOWER_COST);
+  assert.equal(r.goldSpent, 5 * RECRUIT_GOLD_COST);
+  assert.equal(r.shortfall, 0);
+});
+
+test('computeRecruit: capped by the scarcer of gold and manpower, with shortfall', () => {
+  // gold only affords 2 recruits (2 each), manpower affords plenty
+  const r = computeRecruit(0, 100, 2 * RECRUIT_GOLD_COST, 5);
+  assert.equal(r.recruited, 2);
+  assert.equal(r.shortfall, 3);
+  assert.ok(r.goldSpent <= 2 * RECRUIT_GOLD_COST);
+});
+
+test('computeRecruit: nothing affordable recruits zero', () => {
+  const r = computeRecruit(0, 0, 0, 4);
+  assert.equal(r.recruited, 0);
+  assert.equal(r.shortfall, 4);
 });

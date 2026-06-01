@@ -45,6 +45,33 @@ export interface BattleOutcome {
   win: boolean;
 }
 
+// --- Recruitment & training costs ---
+export const RECRUIT_MANPOWER_COST = 1;  // manpower per point of strength
+export const RECRUIT_GOLD_COST = 2;      // gold per point of strength
+export const DRILL_GOLD_COST = 30;       // gold to drill the army once
+export const DRILL_QUALITY_GAIN = 0.2;   // quality raised per drill
+
+export interface RecruitResult {
+  recruited: number;     // strength actually added
+  manpowerSpent: number;
+  goldSpent: number;
+  shortfall: number;     // requested − recruited (unfunded, no debt)
+}
+
+// Muster what the treasury and manpower can afford, up to the request. No debt:
+// the shortfall is surfaced, not borrowed.
+export function computeRecruit(_currentStrength: number, manpower: number, gold: number, requested: number): RecruitResult {
+  const byManpower = Math.floor(manpower / RECRUIT_MANPOWER_COST);
+  const byGold = Math.floor(gold / RECRUIT_GOLD_COST);
+  const recruited = Math.max(0, Math.min(requested, byManpower, byGold));
+  return {
+    recruited,
+    manpowerSpent: recruited * RECRUIT_MANPOWER_COST,
+    goldSpent: recruited * RECRUIT_GOLD_COST,
+    shortfall: requested - recruited,
+  };
+}
+
 // One decisive clash. Consumes exactly two dice (yours, then the invader's) so the
 // battle is replayable on a forward-only cursor. Pure: returns the outcome; the
 // caller (resolve.ts) applies casualties and consequences.
