@@ -7,6 +7,20 @@ import { EngineError } from '../core/errors';
 
 export const TAX_LEVELS = ['low', 'normal', 'high'] as const;
 
+export const ARMY_QUALITY_MIN = 0.5;
+export const ARMY_QUALITY_MAX = 2.0;
+
+export const Army = z.looseObject({
+  strength: z.number().min(0).default(0),
+  quality: z.number().min(ARMY_QUALITY_MIN).max(ARMY_QUALITY_MAX).default(1.0),
+});
+
+export const War = z.looseObject({
+  invader: z.string(),
+  force: z.number().min(0),
+  strikesIn: z.number().int().min(0),
+});
+
 export const Food = z.looseObject({
   stock: z.number(),
   production: z.number().min(0),
@@ -41,7 +55,9 @@ export const Realm = z.looseObject({
   clocks: Clocks,
   policies: z.looseObject({ tax: z.enum(TAX_LEVELS).default('normal') }).default({ tax: 'normal' }),
   holdings: z.array(Holding).default([]),
-  army: z.looseObject({ strength: z.number().min(0) }).default({ strength: 0 }),
+  army: Army.default({ strength: 0, quality: 1.0 }),
+  threat: z.number().min(0).default(0),
+  war: War.nullable().default(null),
   pending: z.array(z.any()).default([]),
   event: z.any().nullable().default(null),
 });

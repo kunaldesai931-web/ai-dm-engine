@@ -83,3 +83,32 @@ test('parseRealm defaults tax to normal when policies omitted', () => {
   const r = parseRealm(base);
   assert.equal(r.policies.tax, 'normal');
 });
+
+test('parseRealm defaults army.quality to 1.0, threat to 0, war to null', () => {
+  const r = parseRealm(validRealm());
+  assert.equal(r.army.quality, 1.0);
+  assert.equal(r.threat, 0);
+  assert.equal(r.war, null);
+});
+
+test('parseRealm rejects army quality below 0.5 or above 2.0', () => {
+  const lo = validRealm(); lo.army = { strength: 10, quality: 0.4 };
+  const hi = validRealm(); hi.army = { strength: 10, quality: 2.1 };
+  assert.throws(() => parseRealm(lo), EngineError);
+  assert.throws(() => parseRealm(hi), EngineError);
+});
+
+test('parseRealm rejects negative threat and negative army strength', () => {
+  const t = validRealm(); t.threat = -1;
+  const s = validRealm(); s.army = { strength: -5, quality: 1.0 };
+  assert.throws(() => parseRealm(t), EngineError);
+  assert.throws(() => parseRealm(s), EngineError);
+});
+
+test('parseRealm accepts an active war block', () => {
+  const w = validRealm(); w.war = { invader: 'the Ashmark horde', force: 40, strikesIn: 2 };
+  const r = parseRealm(w);
+  assert.ok(r.war !== null);
+  assert.equal(r.war.force, 40);
+  assert.equal(r.war.strikesIn, 2);
+});
