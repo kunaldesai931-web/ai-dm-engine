@@ -34,3 +34,25 @@ export function announceInvasion(threat: number, turn: number): War {
     strikesIn: INVASION_WARNING_TURNS,
   };
 }
+
+export interface BattleOutcome {
+  effective: number;    // strength × quality
+  force: number;        // the invader's force
+  yourRoll: number;     // d20
+  invaderRoll: number;  // d20
+  yourScore: number;    // effective + yourRoll
+  invaderScore: number; // force + invaderRoll
+  win: boolean;
+}
+
+// One decisive clash. Consumes exactly two dice (yours, then the invader's) so the
+// battle is replayable on a forward-only cursor. Pure: returns the outcome; the
+// caller (resolve.ts) applies casualties and consequences.
+export function resolveBattle(strength: number, quality: number, force: number, roller: Roller): BattleOutcome {
+  const effective = strength * quality;
+  const yourRoll = roller.die(20);
+  const invaderRoll = roller.die(20);
+  const yourScore = effective + yourRoll;
+  const invaderScore = force + invaderRoll;
+  return { effective, force, yourRoll, invaderRoll, yourScore, invaderScore, win: yourScore >= invaderScore };
+}
