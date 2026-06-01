@@ -82,6 +82,24 @@ npm run typecheck
 The golden-replay test proves determinism: a fixed seed + scripted commands reach
 an identical `realm.json` every run.
 
+## Warfare (v2)
+
+An invasion `threat` rises every peacetime tick — faster as the realm grows richer
+and larger. When it crosses a threshold, an invasion is **announced** with a 2-turn
+warning; you can `recruit` and `drill` to prepare. When the countdown strikes, the
+engine resolves one deterministic battle: `army.strength x army.quality + d20` vs
+`invader.force + d20`. Win and you repel them (light casualties, veterancy). Lose and
+the realm is sacked — looted treasury, a razed holding, a spike in unrest, a drop in
+stability. A standing army costs upkeep every turn (more for higher quality), so peace
+is not free: it is the price of not being sacked.
+
+    realm recruit --strength N   # muster (manpower + gold), resolved on tick
+    realm drill                  # train (gold -> +quality), resolved on tick
+
+Recruiting consumes manpower; a barracks holding produces it. The digest surfaces war
+as a descriptor — "peace holds", "distant war-drums", "<invader> is massing on the
+border", "the realm is under siege".
+
 ## Deferred to v2
 
 Army beyond a single `strength` number; the reverse bridge (RPG drives sim ticks,
