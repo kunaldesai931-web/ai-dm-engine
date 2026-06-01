@@ -13,7 +13,7 @@ function validRealm(): any {
     clocks: { stability: 1, unrest: 2, prosperity: 0 },
     policies: { tax: 'normal' },
     holdings: [{ id: 'market', tier: 1 }],
-    army: { strength: 0 },
+    army: { strength: 0, quality: 1.0 },
     pending: [],
     event: null,
   };
@@ -91,10 +91,13 @@ test('parseRealm defaults army.quality to 1.0, threat to 0, war to null', () => 
   assert.equal(r.war, null);
 });
 
-test('parseRealm rejects army quality below 0.5 or above 2.0', () => {
+test('parseRealm rejects army quality below 0.5', () => {
   const lo = validRealm(); lo.army = { strength: 10, quality: 0.4 };
-  const hi = validRealm(); hi.army = { strength: 10, quality: 2.1 };
   assert.throws(() => parseRealm(lo), EngineError);
+});
+
+test('parseRealm rejects army quality above 2.0', () => {
+  const hi = validRealm(); hi.army = { strength: 10, quality: 2.1 };
   assert.throws(() => parseRealm(hi), EngineError);
 });
 
@@ -108,7 +111,7 @@ test('parseRealm rejects negative threat and negative army strength', () => {
 test('parseRealm accepts an active war block', () => {
   const w = validRealm(); w.war = { invader: 'the Ashmark horde', force: 40, strikesIn: 2 };
   const r = parseRealm(w);
-  assert.ok(r.war !== null);
+  assert.ok(r.war !== null, 'war should not be null');
   assert.equal(r.war.force, 40);
   assert.equal(r.war.strikesIn, 2);
 });
