@@ -6,6 +6,11 @@ import { makeRoller } from '../core/rng';
 import { computeIncome, applyIncome, resolveFood, HOLDING_YIELDS, type IncomeBreakdown, type FoodResult } from './economy';
 import { drawEvent, applyEventEffects, EVENT_TABLE, type RealmEvent } from './events';
 import type { TRealm } from './schema';
+import {
+  growThreat, announceInvasion, resolveBattle, computeRecruit,
+  INVASION_THRESHOLD, DRILL_GOLD_COST, DRILL_QUALITY_GAIN,
+} from './war';
+import { ARMY_QUALITY_MAX } from './schema';
 
 // Derived clock pressures — named so the model can be tuned in one place. The
 // clocks must REGRESS, not ratchet: every pusher has a counter-pull so a well-run
@@ -36,6 +41,14 @@ const SURPLUS_PROSPERITY_AT = 20;      // a fat food surplus nudges prosperity u
 // can't bank an infinite surplus (the economic counter-pull on growth):
 const POP_CONSUMPTION_PER_HOLDING = 3;
 
+// War consequences (tunable in the balance shakedown).
+const WIN_CASUALTY_FRAC = 0.2;
+const LOSS_CASUALTY_FRAC = 0.6;
+const VETERANCY_GAIN = 0.1;
+const SACK_TREASURY_FRAC = 0.4;
+const SACK_UNREST = 3;
+const SACK_STABILITY = 2;
+
 const CLOCK_RANGE = {
   stability: [-5, 5],
   unrest: [0, 10],
@@ -57,6 +70,12 @@ export interface TickReport {
   builds: string[];
   clockDelta: { stability: number; unrest: number; prosperity: number };
   clamps: string[];
+  threat: number;
+  war:
+    | null
+    | { event: 'announced'; invader: string; force: number; strikesIn: number }
+    | { event: 'battle'; invader: string; outcome: 'won' | 'lost'; effective: number; force: number;
+        yourRoll: number; invaderRoll: number; casualties: number; treasuryLost: number; holdingRazed: string | null };
 }
 
 function advanceCalendar(cal: { unit: string; value: string }): { unit: string; value: string } {
@@ -89,6 +108,41 @@ export function clampClocks(clocks: { stability: number; unrest: number; prosper
     out[k] = clamped;
   }
   return { clocks: out, clamps };
+}
+
+type WarReport = TickReport['war'];
+
+function applyBattle(realm: any, roller: any): WarReport {
+  const out = resolveBattle(realm.army.strength, realm.army.quality, realm.war.force, roller);
+  const invader = realm.war.invader;
+  if (out.win) {
+    const casualties = Math.round(realm.army.strength * WIN_CASUALTY_FRAC);
+    realm.army.strength = Math.max(0, realm.army.strength - casualties);
+    realm.army.quality = Math.min(ARMY_QUALITY_MAX, realm.army.quality + VETERANCY_GAIN);
+    realm.clocks.stability += 1;
+    realm.war = null;
+    return { event: 'battle', invader, outcome: 'won', effective: out.effective, force: out.force,
+      yourRoll: out.yourRoll, invaderRoll: out.invaderRoll, casualties, treasuryLost: 0, holdingRazed: null };
+  }
+  const casualties = Math.round(realm.army.strength * LOSS_CASUALTY_FRAC);
+  realm.army.strength = Math.max(0, realm.army.strength - casualties);
+  const treasuryLost = Math.round(realm.resources.treasury * SACK_TREASURY_FRAC);
+  realm.resources.treasury = Math.max(0, realm.resources.treasury - treasuryLost);
+  // Raze the lowest-tier holding (tie-break: last such in the list).
+  let holdingRazed: string | null = null;
+  if (realm.holdings.length > 0) {
+    let idx = 0;
+    for (let i = 0; i < realm.holdings.length; i++) if (realm.holdings[i].tier <= realm.holdings[idx].tier) idx = i;
+    const h = realm.holdings[idx];
+    holdingRazed = h.id;
+    if (h.tier > 1) h.tier -= 1; else realm.holdings.splice(idx, 1);
+  }
+  realm.clocks.unrest += SACK_UNREST;
+  realm.clocks.stability -= SACK_STABILITY;
+  realm.clocks.prosperity -= 1;
+  realm.war = null;
+  return { event: 'battle', invader, outcome: 'lost', effective: out.effective, force: out.force,
+    yourRoll: out.yourRoll, invaderRoll: out.invaderRoll, casualties, treasuryLost, holdingRazed };
 }
 
 export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; report: TickReport } {
@@ -145,11 +199,38 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
       const next = applyEventEffects(realm, item.effects);
       realm.clocks = next.clocks;
       realm.resources = next.resources;
+    } else if (item.kind === 'recruit') {
+      const rc = computeRecruit(realm.army.strength, realm.resources.manpower, realm.resources.treasury, item.strength);
+      realm.army.strength += rc.recruited;
+      realm.resources.manpower -= rc.manpowerSpent;
+      realm.resources.treasury -= rc.goldSpent;
+    } else if (item.kind === 'drill') {
+      if (realm.resources.treasury >= DRILL_GOLD_COST) {
+        realm.resources.treasury -= DRILL_GOLD_COST;
+        realm.army.quality = Math.min(ARMY_QUALITY_MAX, realm.army.quality + DRILL_QUALITY_GAIN);
+      }
     }
   }
   realm.pending = [];
 
-  // 6. Clocks — derived pressure with counter-pulls, then clamp (surfacing it).
+  // 6. War — count down an incoming invasion and resolve it, or grow threat and
+  // announce a new invasion. Battle consequences feed the clocks step below.
+  let warReport: WarReport = null;
+  if (realm.war) {
+    realm.war.strikesIn -= 1;
+    if (realm.war.strikesIn <= 0) {
+      warReport = applyBattle(realm, roller);
+    }
+  } else {
+    realm.threat = growThreat(realm.threat, realm.clocks.prosperity, realm.holdings.length);
+    if (realm.threat >= INVASION_THRESHOLD) {
+      realm.war = announceInvasion(realm.threat, realm.meta.turn);
+      realm.threat = 0;
+      warReport = { event: 'announced', invader: realm.war.invader, force: realm.war.force, strikesIn: realm.war.strikesIn };
+    }
+  }
+
+  // 7. Clocks — derived pressure with counter-pulls, then clamp (surfacing it).
   const tax = realm.policies.tax;
 
   // 6a. Unrest — pushers then relievers, so the clock cools when well-run.
@@ -190,6 +271,8 @@ export function tick(input: TRealm, opts: TickOptions = {}): { realm: TRealm; re
       prosperity: realm.clocks.prosperity - before.prosperity,
     },
     clamps,
+    threat: realm.threat,
+    war: warReport,
   };
 
   return { realm: realm as TRealm, report };

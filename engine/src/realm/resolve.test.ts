@@ -132,3 +132,54 @@ test('FEEDBACK: building grows food consumption (the realm gains population)', (
   const { realm } = tick(r, { eventTable: QUIET });
   assert.ok(realm.resources.food.consumption > 26, `consumption ${realm.resources.food.consumption} grew past 26`);
 });
+
+import { INVASION_THRESHOLD } from './war';
+
+test('WAR: a recruit order musters strength on the tick, spending gold and manpower', () => {
+  const r = validRealm({ resources: { treasury: 100, food: { stock: 80, production: 30, consumption: 26 }, manpower: 100 },
+    army: { strength: 0, quality: 1.0 }, pending: [{ kind: 'recruit', strength: 10 }] });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.equal(realm.army.strength, 10);
+  assert.ok(realm.resources.manpower < 100 && realm.resources.treasury < 100);
+});
+
+test('WAR: a drill order raises quality, capped at 2.0', () => {
+  const r = validRealm({ army: { strength: 10, quality: 1.9 }, pending: [{ kind: 'drill' }, { kind: 'drill' }] });
+  const { realm } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.army.quality > 1.9);
+  assert.ok(realm.army.quality <= 2.0);
+});
+
+test('WAR: threat grows in peacetime and an invasion is announced at the threshold', () => {
+  const r = validRealm({ threat: INVASION_THRESHOLD });
+  const { realm, report } = tick(r, { eventTable: QUIET });
+  assert.ok(realm.war, 'invasion announced');
+  assert.equal(realm.threat, 0, 'threat discharged');
+  assert.ok(realm.war.force > 0);
+});
+
+test('WAR: an incoming invasion counts down and strikes when it reaches zero', () => {
+  const r = validRealm({ war: { invader: 'the Ashmark horde', force: 5, strikesIn: 1 },
+    army: { strength: 100, quality: 1.0 } });
+  const { realm, report } = tick(r, { eventTable: QUIET });
+  assert.equal(realm.war, null, 'war resolved');
+  assert.equal((report.war as any)?.event, 'battle');
+  assert.equal((report.war as any)?.outcome, 'won'); // 100 effective vs force 5
+});
+
+test('WAR INVARIANT: losing a battle never drops treasury below zero', () => {
+  const r = validRealm({ war: { invader: 'doom', force: 999, strikesIn: 1 },
+    army: { strength: 0, quality: 1.0 },
+    resources: { treasury: 10, food: { stock: 80, production: 30, consumption: 26 }, manpower: 0 } });
+  const { realm, report } = tick(r, { eventTable: QUIET });
+  assert.equal((report.war as any)?.outcome, 'lost');
+  assert.ok(realm.resources.treasury >= 0, `treasury ${realm.resources.treasury}`);
+  assert.ok(realm.clocks.unrest <= 10 && realm.clocks.stability >= -5, 'clocks clamped after the sack');
+  assert.doesNotThrow(() => parseRealm(realm));
+});
+
+test('WAR: a battle tick consumes three dice (one event draw + two battle dice)', () => {
+  const before = validRealm({ war: { invader: 'doom', force: 5, strikesIn: 1 }, army: { strength: 50, quality: 1.0 } });
+  const { realm } = tick(before, { eventTable: QUIET });
+  assert.equal(realm.rng.cursor - before.rng.cursor, 3);
+});
