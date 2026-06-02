@@ -24,6 +24,19 @@ export function sessionStart(state: TState) {
     .map(([id, f]) => ({ id, name: f.name || id, score: f.score ?? 0, disposition: f.disposition ?? null }))
     .sort((a, b) => a.score - b.score);
 
+  // Ticking clocks — sorted by urgency (most filled first).
+  const clocks = Object.entries(((state as any).clocks || {}) as Record<string, any>)
+    .map(([id, ck]: [string, any]) => ({ id, label: ck.label, segments: ck.segments, filled: ck.filled ?? 0, trigger: ck.trigger ?? null, urgent: (ck.filled ?? 0) >= ck.segments }))
+    .sort((a, b) => (b.filled / b.segments) - (a.filled / a.segments));
+
+  // Intel items — evidence and documents in party inventory.
+  const intel: any[] = [];
+  for (const [, pc] of Object.entries((state.pcs || {}) as Record<string, any>)) {
+    for (const item of (pc.inventory || []) as any[]) {
+      if (item?.type === 'intel') intel.push({ id: item.id, note: item.note ?? null, status: item.status ?? null, holder: pc.name });
+    }
+  }
+
   const c: any = (state as any).combat;
   const turn = c?.active ? `combat — ${c.order[c.turnIndex].id} (round ${c.round})` : 'exploration / free play';
 
@@ -35,7 +48,7 @@ export function sessionStart(state: TState) {
       `TURN: ${turn}`,
     ],
     session: m.sessionNumber ?? null,
-    dashboard: { quests, threads, leads, factions },
+    dashboard: { quests, threads, leads, factions, clocks, intel },
   };
 }
 

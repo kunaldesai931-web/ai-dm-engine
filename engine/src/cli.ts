@@ -74,7 +74,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -89,7 +89,9 @@ function main() {
     case 'damage': result = rules.damage(state, { target: str(flags.target)!, amount: num(flags.amount), roll: str(flags.roll), type: str(flags.type), crit: bool(flags.crit) }); mutated = true; break;
     case 'heal': result = rules.heal(state, { target: str(flags.target)!, amount: num(flags.amount) }); mutated = true; break;
     case 'cast': result = rules.cast(state, { actor: str(flags.actor)!, spell: str(flags.spell)!, slot: num(flags.slot) }); mutated = true; break;
-    case 'rest': result = rules.rest(state, { actor: str(flags.actor)!, type: str(flags.type)! }); mutated = true; break;
+    case 'rest': result = rules.rest(state, { actor: str(flags.actor)!, type: str(flags.type)!, hitDice: num(flags.hitDice) }); mutated = true; break;
+    case 'use': result = rules.useResource(state, { actor: str(flags.actor)!, resource: str(flags.resource)! }); mutated = true; break;
+    case 'levelup': result = rules.levelUp(state, { actor: str(flags.actor)!, hpRoll: num(flags.hpRoll) }); mutated = true; break;
     case 'modify': result = rules.modify(state, { actor: str(flags.actor), resource: str(flags.resource)!, delta: num(flags.delta) }); mutated = true; break;
     case 'inventory add': case 'inventory remove': {
       const actor: any = getActor(state, str(flags.actor)!);
@@ -123,6 +125,8 @@ function main() {
     case 'combat start': result = combat.startCombat(state, { participants: str(flags.participants) }); mutated = true; break;
     case 'combat next': result = combat.nextTurn(state); mutated = true; break;
     case 'combat end': result = combat.endCombat(state); mutated = true; break;
+    case 'combat status': result = combat.combatStatus(state); break;
+    case 'combat spawn': result = combat.spawnCombatant(state, { id: str(flags.id)!, name: str(flags.name)!, hp: num(flags.hp)!, ac: num(flags.ac)!, init: num(flags.init) }); mutated = true; break;
     case 'monster add': result = combat.addMonster(state, { from: str(flags.from)!, as: str(flags.as) }); mutated = true; break;
     case 'npc add': {
       const id = str(flags.id) || (str(flags.name) || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -183,6 +187,48 @@ function main() {
     case 'chronicle commit': result = chronicle.commit(state, { summary: str(flags.summary) }); mutated = true; break;
     case 'chronicle read': result = chronicle.read(state); break;
     case 'campaign load': result = session.sessionStart(state); break;
+    case 'clock add': {
+      const cid = str(flags.id) || positional[2];
+      if (!cid) throw new EngineError('clock add requires --id');
+      if (!str(flags.label)) throw new EngineError('clock add requires --label "description"');
+      const segs = num(flags.segments) ?? 6;
+      (state as any).clocks = (state as any).clocks || {};
+      if ((state as any).clocks[cid]) throw new EngineError(`clock "${cid}" already exists`);
+      (state as any).clocks[cid] = { label: str(flags.label), segments: segs, filled: 0, trigger: str(flags.trigger) };
+      result = { op: 'clock.add', id: cid, ...((state as any).clocks[cid]) }; mutated = true; break;
+    }
+    case 'clock tick': {
+      const cid = str(flags.id) || positional[2];
+      if (!cid) throw new EngineError('clock tick requires --id');
+      const clocks = (state as any).clocks || {};
+      if (!clocks[cid]) throw new EngineError(`no clock "${cid}"`);
+      const ck = clocks[cid];
+      const by = num(flags.by) ?? 1;
+      ck.filled = Math.min(ck.segments, ck.filled + by);
+      const triggered = ck.filled >= ck.segments;
+      result = { op: 'clock.tick', id: cid, filled: ck.filled, segments: ck.segments, triggered, trigger: triggered ? (ck.trigger ?? 'clock full') : null }; mutated = true; break;
+    }
+    case 'clock status': {
+      const clocks = (state as any).clocks || {};
+      result = { op: 'clock.status', clocks: Object.entries(clocks).map(([id, ck]: any) => ({ id, label: ck.label, filled: ck.filled, segments: ck.segments, pct: Math.round(100 * ck.filled / ck.segments), triggered: ck.filled >= ck.segments, trigger: ck.trigger ?? null })) };
+      break;
+    }
+    case 'clock remove': {
+      const cid = str(flags.id) || positional[2];
+      if (!cid) throw new EngineError('clock remove requires --id');
+      const clocks = (state as any).clocks || {};
+      if (!clocks[cid]) throw new EngineError(`no clock "${cid}"`);
+      delete clocks[cid];
+      result = { op: 'clock.remove', id: cid }; mutated = true; break;
+    }
+    case 'intel add': {
+      const actor: any = getActor(state, str(flags.actor)!);
+      actor.inventory = actor.inventory || [];
+      const iid = str(flags.id)!;
+      if (!iid) throw new EngineError('intel add requires --id');
+      actor.inventory.push({ id: iid, type: 'intel', note: str(flags.note) ?? '', status: str(flags.status) ?? 'secured', tags: str(flags.tags)?.split(',').map((t) => t.trim()) ?? [] });
+      result = { op: 'intel.add', actor: str(flags.actor), id: iid }; mutated = true; break;
+    }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
 
@@ -198,15 +244,23 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   damage --target ID (--amount N | --roll NdM+K) [--type T] [--crit]
   heal   --target ID --amount N
   cast   --actor ID --spell S [--slot N]        # SRD spells carry their own level
-  rest   --actor ID --type short|long
-  modify --resource gold --delta N | modify --actor ID --resource xp --delta N
+  rest    --actor ID --type short|long [--hitDice N]   # short: spend N Hit Dice to heal
+  use     --actor ID --resource <name>                 # consume Action Surge, Second Wind, etc.
+  levelup --actor ID [--hpRoll N]                      # level up (omit hpRoll for average)
+  modify  --resource gold --delta N | modify --actor ID --resource xp --delta N
   inventory add|remove --actor ID --item ID [--qty N]
+  intel add --actor ID --id <key> --note "desc" [--tags tag1,tag2] [--status secured]
   state get [--path a.b.c]
   state patch [--file patch.json] [--set a.b=val ...]
-  combat start --participants id1,id2,... | combat next | combat end
+  combat start --participants id1,id2,...
+  combat spawn --id <id> --name "Name" --hp N --ac N [--init N]   # custom ephemeral enemy
+  combat next | combat end | combat status
   monster add --from <srd-monster> [--as ID]
   npc add --name "Full Name" [--id id-slug] [--role "description"]
   faction rep --faction <id> (--delta N | --set N)   # score clamped to [-5, +5]
+  clock add --id <id> --label "desc" [--segments N] [--trigger "what happens"]
+  clock tick --id <id> [--by N]
+  clock status | clock remove --id <id>
   srd spell|weapon|condition|monster <name>
   region enter <id> | region leave
   session start | session end

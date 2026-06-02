@@ -20,11 +20,26 @@ export function startCombat(state: TState, a: { participants?: string }) {
   (state as any).combat = { active: true, round: 1, turnIndex: 0, order };
   // Reveal stat blocks for all participants at combat start (transparency rule).
   const statBlocks = ids.reduce<Record<string, any>>((acc, id) => {
-    const a = getActor(state, id);
-    acc[id] = { name: a.name, hp: a.hp, ac: a.ac, conditions: a.conditions || [] };
+    const actor = getActor(state, id);
+    acc[id] = { name: actor.name, hp: actor.hp, ac: actor.ac, conditions: actor.conditions || [] };
     return acc;
   }, {});
   return { op: 'combat.start', round: 1, order, turn: order[0].id, statBlocks, rng: roller.consumed() };
+}
+
+// Spawn a custom ephemeral combatant (not an SRD monster). Ephemeral combatants
+// are auto-purged from npcs when combat ends — they don't pollute persistent state.
+export function spawnCombatant(state: TState, a: { id: string; name: string; hp: number; ac: number; init?: number }) {
+  if (!a.id || !a.name) throw new EngineError('combat spawn needs --id and --name');
+  if (!a.hp || a.hp < 1) throw new EngineError('combat spawn needs --hp N (positive)');
+  if (!a.ac || a.ac < 1) throw new EngineError('combat spawn needs --ac N (positive)');
+  state.npcs = state.npcs || {};
+  if ((state.npcs as any)[a.id]) throw new EngineError(`npc "${a.id}" already exists; choose a different --id`);
+  (state.npcs as any)[a.id] = {
+    name: a.name, ac: a.ac, hp: { current: a.hp, max: a.hp, temp: 0 },
+    initiativeMod: a.init ?? 0, conditions: [], ephemeral: true,
+  };
+  return { op: 'combat.spawn', id: a.id, name: a.name, hp: a.hp, ac: a.ac };
 }
 
 export function nextTurn(state: TState) {
@@ -32,15 +47,39 @@ export function nextTurn(state: TState) {
   if (!c || !c.active) throw new EngineError('no active combat');
   c.turnIndex += 1;
   if (c.turnIndex >= c.order.length) { c.turnIndex = 0; c.round += 1; }
-  return { op: 'combat.next', round: c.round, turn: c.order[c.turnIndex].id };
+  const id = c.order[c.turnIndex].id;
+  const actor = getActor(state, id);
+  return {
+    op: 'combat.next', round: c.round, turn: id,
+    actor: { name: actor.name, hp: actor.hp, ac: actor.ac, conditions: actor.conditions || [], resources: (actor as any).resources || {} },
+  };
+}
+
+export function combatStatus(state: TState) {
+  const c = (state as any).combat;
+  if (!c || !c.active) throw new EngineError('no active combat');
+  const combatants = c.order.map((entry: any, i: number) => {
+    const actor = getActor(state, entry.id);
+    return {
+      id: entry.id, name: actor.name, initiative: entry.initiative,
+      hp: actor.hp, ac: actor.ac, conditions: actor.conditions || [],
+      isCurrent: i === c.turnIndex,
+    };
+  });
+  return { op: 'combat.status', round: c.round, current: c.order[c.turnIndex].id, combatants };
 }
 
 export function endCombat(state: TState) {
   const c = (state as any).combat;
   if (!c || !c.active) throw new EngineError('no active combat');
   const rounds = c.round;
+  // Purge ephemeral combatants — they don't belong in persistent NPC state.
+  const purged: string[] = [];
+  for (const [id, npc] of Object.entries((state.npcs || {}) as Record<string, any>)) {
+    if (npc.ephemeral) { delete (state.npcs as any)[id]; purged.push(id); }
+  }
   (state as any).combat = { active: false };
-  return { op: 'combat.end', rounds };
+  return { op: 'combat.end', rounds, purged };
 }
 
 // Spawn an SRD monster into npcs with its AC/HP, ready to fight.
