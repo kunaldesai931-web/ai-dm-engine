@@ -85,7 +85,7 @@ function main() {
     }
     case 'check': result = rules.check(state, { actor: str(flags.actor)!, skill: str(flags.skill), ability: str(flags.ability), dc: num(flags.dc), adv: bool(flags.adv), dis: bool(flags.dis) }); mutated = true; break;
     case 'save': result = rules.save(state, { actor: str(flags.actor)!, ability: str(flags.ability), dc: num(flags.dc), adv: bool(flags.adv), dis: bool(flags.dis) }); mutated = true; break;
-    case 'attack': result = rules.attack(state, { attacker: str(flags.attacker), target: str(flags.target), weapon: str(flags.weapon), bonus: num(flags.bonus) || 0, ability: str(flags.ability), proficient: bool(flags.proficient), damage: str(flags.damage), type: str(flags.type), adv: bool(flags.adv), dis: bool(flags.dis) }); mutated = true; break;
+    case 'attack': result = rules.attack(state, { attacker: str(flags.attacker), target: str(flags.target), weapon: str(flags.weapon), bonus: num(flags.bonus) || 0, ability: str(flags.ability), proficient: bool(flags.proficient), damage: str(flags.damage), type: str(flags.type), adv: bool(flags.adv), dis: bool(flags.dis), ambush: bool(flags.ambush) }); mutated = true; break;
     case 'damage': result = rules.damage(state, { target: str(flags.target)!, amount: num(flags.amount), roll: str(flags.roll), type: str(flags.type), crit: bool(flags.crit) }); mutated = true; break;
     case 'heal': result = rules.heal(state, { target: str(flags.target)!, amount: num(flags.amount) }); mutated = true; break;
     case 'cast': result = rules.cast(state, { actor: str(flags.actor)!, spell: str(flags.spell)!, slot: num(flags.slot) }); mutated = true; break;

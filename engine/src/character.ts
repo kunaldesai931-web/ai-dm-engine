@@ -33,7 +33,8 @@ export function skillMod(actor: TCharacter, skill: string) {
   if (!ability) throw new EngineError(`unknown skill "${skill}"`);
   let mod = abilityMod(actor, ability);
   const tier = (actor.skills || {})[skill];
-  if (tier === 'prof') mod += profBonus(actor);
+  // Accept both 'proficient' (sheet convention) and 'prof' (shorthand).
+  if (tier === 'prof' || tier === 'proficient') mod += profBonus(actor);
   else if (tier === 'expertise') mod += 2 * profBonus(actor);
   return { mod, ability, tier: tier || 'untrained' };
 }

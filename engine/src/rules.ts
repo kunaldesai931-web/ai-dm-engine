@@ -104,18 +104,20 @@ export function attack(state: TState, a: any) {
   const roller = makeRoller(state.rng);
   const d20 = rollD20(roller, { advantage: a.adv, disadvantage: a.dis });
   const totalToHit = d20.natural + toHit;
-  const hit = d20.crit || (!d20.fumble && totalToHit >= tgt.ac);
+  // Ambush rule: attacking an unaware target auto-crits on any hit (dice doubled).
+  const isCrit = d20.crit || !!a.ambush;
+  const hit = isCrit || (!d20.fumble && totalToHit >= tgt.ac);
 
   let dmg: any = null, transition: any = null;
   if (hit && dmgNotation) {
-    dmg = rollNotation(roller, dmgNotation, { doubleDice: d20.crit });
+    dmg = rollNotation(roller, dmgNotation, { doubleDice: isCrit });
     transition = applyDamage(tgt, Math.max(0, dmg.total));
   }
   return {
     op: 'attack', attacker: a.attacker, target: a.target,
     weapon: weaponInfo ? weaponInfo.name : (a.weapon || null),
     d20: d20.rolls, used: d20.natural, mode: d20.mode, toHitBonus: toHit, toHit: totalToHit,
-    targetAc: tgt.ac, crit: d20.crit, fumble: d20.fumble, hit,
+    targetAc: tgt.ac, crit: isCrit, ambush: !!a.ambush, fumble: d20.fumble, hit,
     damage: dmg, type: a.type || (weaponInfo ? weaponInfo.damageType : null), ...(transition || {}),
     rng: roller.consumed(),
   };

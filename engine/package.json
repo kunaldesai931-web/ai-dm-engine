@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Deterministic tabletop engine. Code owns the dice and state; the LLM narrates.",
   "scripts": {
-    "engine": "tsx src/cli.ts",
-    "realm": "tsx src/realm/cli.ts",
+    "engine": "./node_modules/.bin/tsx src/cli.ts",
+    "realm": "./node_modules/.bin/tsx src/realm/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },

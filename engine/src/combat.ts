@@ -18,7 +18,13 @@ export function startCombat(state: TState, a: { participants?: string }) {
     return { id, initiative: d20.natural + mod, roll: d20.natural, mod };
   }).sort((x, y) => y.initiative - x.initiative);
   (state as any).combat = { active: true, round: 1, turnIndex: 0, order };
-  return { op: 'combat.start', round: 1, order, turn: order[0].id, rng: roller.consumed() };
+  // Reveal stat blocks for all participants at combat start (transparency rule).
+  const statBlocks = ids.reduce<Record<string, any>>((acc, id) => {
+    const a = getActor(state, id);
+    acc[id] = { name: a.name, hp: a.hp, ac: a.ac, conditions: a.conditions || [] };
+    return acc;
+  }, {});
+  return { op: 'combat.start', round: 1, order, turn: order[0].id, statBlocks, rng: roller.consumed() };
 }
 
 export function nextTurn(state: TState) {
