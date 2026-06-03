@@ -65,6 +65,10 @@ export const CombatUnit = z.object({
   status: z.enum(['active', 'stunned', 'routing', 'down', 'dead']),
   hasActed: z.boolean(),
   hasMoved: z.boolean(),
+}).superRefine((u, ctx) => {
+  if (u.currentHp > u.stats.maxHp) {
+    ctx.addIssue({ code: 'custom', message: `${u.memberId}: currentHp ${u.currentHp} exceeds stats.maxHp ${u.stats.maxHp}` });
+  }
 });
 
 export const WarbandCampaignState = z.object({
@@ -84,10 +88,6 @@ export const WarbandCampaignState = z.object({
     currentTurnIndex: z.number().int().min(0),
     grid: z.array(z.array(z.enum(['open', 'blocked', 'occupied']))),
   }).optional(),
-}).superRefine((s, ctx) => {
-  if (s.meta.gold < 0) {
-    ctx.addIssue({ code: 'custom', message: 'gold cannot be negative' });
-  }
 });
 
 export type TRosterMember = z.infer<typeof RosterMember>;
