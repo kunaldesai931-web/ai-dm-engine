@@ -138,7 +138,7 @@ function main() {
     const protagonist = makeProtagonist(protagonistName, bg);
     const seed = `${campaignName}-${Date.now()}`;
     const initialState = parseWarbandCampaignState({
-      meta: { campaign: campaignName, day: 1, gold: 50 },
+      meta: { campaign: campaignName, day: 1, gold: 100 },
       rng: { seed, cursor: 0 },
       protagonist,
       companions: {},
@@ -161,8 +161,8 @@ function main() {
     case 'roster list': {
       const roster = [
         state.protagonist,
-        ...Object.values(state.companions),
-        ...Object.values(state.hirelings),
+        ...Object.values(state.companions).filter((companion) => !companion.death),
+        ...Object.values(state.hirelings).filter((hireling) => !hireling.death),
       ].map((m) => ({ id: m.id, name: m.name, role: m.role, level: m.level, xp: m.xp, backgroundId: m.backgroundId, dead: !!m.death }));
       result = { op: 'roster.list', roster };
       break;
@@ -216,7 +216,7 @@ function main() {
       const updated = gainXp(member, amount);
       const threshold = xpToNextLevel(updated.level);
       state = updateMember(state, id, updated);
-      result = { op: 'progress.xp', id, xp: updated.xp, level: updated.level, readyToLevel: updated.xp >= threshold };
+      result = { op: 'progress.xp', id, xp: updated.xp, level: updated.level, xpNeeded: threshold, readyToLevel: updated.xp >= threshold };
       mutated = true;
       break;
     }
