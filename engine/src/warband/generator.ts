@@ -41,6 +41,8 @@ export function generateHireling(
   backgrounds: Background[],
   traits: string[],
 ): TRosterMember {
+  if (backgrounds.length === 0) throw new Error('generateHireling: backgrounds array is empty');
+  if (traits.length < 2) throw new Error('generateHireling: need at least 2 traits');
   const bg = pickRandom(roll, backgrounds);
   const name = pickRandom(roll, NAMES);
 

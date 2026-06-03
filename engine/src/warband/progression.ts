@@ -27,13 +27,23 @@ export interface InjuryEntry {
 }
 
 export function applyInjury(member: TRosterMember, injury: InjuryEntry): TRosterMember {
-  const newStats = { ...member.stats };
-  const current = newStats[injury.stat] as number;
-  (newStats as Record<string, number>)[injury.stat] = Math.max(0, current + injury.amount);
+  const stats = { ...member.stats };
+  // Type-safe indexed update — only the 5 valid stat keys allowed by InjuryEntry
+  const statMap: Record<InjuryEntry['stat'], number> = {
+    melee: stats.melee,
+    ranged: stats.ranged,
+    defense: stats.defense,
+    resolve: stats.resolve,
+    initiative: stats.initiative,
+  };
+  statMap[injury.stat] = Math.max(0, statMap[injury.stat] + injury.amount);
   return {
     ...member,
-    stats: newStats,
-    injuries: [...member.injuries, { id: injury.id, name: injury.name, stat: injury.stat, amount: injury.amount }],
+    stats: { ...stats, ...statMap },
+    injuries: [
+      ...member.injuries,
+      { id: injury.id, name: injury.name, stat: injury.stat, amount: injury.amount },
+    ],
   };
 }
 
