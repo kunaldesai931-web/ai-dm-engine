@@ -53,7 +53,11 @@ function out(obj: unknown): void {
 }
 
 function loadData<T>(filename: string): T {
-  return JSON.parse(fs.readFileSync(path.join(DATA_DIR, filename), 'utf8')) as T;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DATA_DIR, filename), 'utf8')) as T;
+  } catch {
+    throw new EngineError(`failed to load data file: ${filename}`);
+  }
 }
 
 type Background = {
@@ -153,7 +157,7 @@ function main() {
   // Commands that need existing campaign
   const campaign = resolveWarbandCampaign(str(flags.campaign));
   let state = loadWarbandState(campaign);
-  let result: unknown, mutated = false;
+  let result: any, mutated = false;
 
   const key = `${cmd} ${sub}`;
 
@@ -244,17 +248,14 @@ function main() {
 
   if (mutated) {
     saveWarbandState(campaign, state);
-    logWarbandEvent(campaign, { event: (result as any).op, detail: result });
+    logWarbandEvent(campaign, { event: result.op, detail: result });
   }
-  out({ campaign: campaign.name, ...(result as object) });
+  out({ campaign: campaign.name, ...result });
 }
 
-try {
-  main();
-} catch (e: unknown) {
-  if (e instanceof EngineError) {
-    process.stderr.write(`error: ${e.message}\n`);
-    process.exit(1);
-  }
-  throw e;
+try { main(); }
+catch (err: any) {
+  const msg = err instanceof EngineError ? err.message : String(err?.stack || err);
+  process.stderr.write(JSON.stringify({ error: msg }, null, 2) + '\n');
+  process.exit(1);
 }
