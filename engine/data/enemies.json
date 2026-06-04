@@ -1,0 +1,43 @@
+[
+  {
+    "id": "bandit",
+    "name": "Bandit",
+    "stats": { "melee": 3, "ranged": 1, "defense": 2, "resolve": 2, "initiative": 2, "maxHp": 10 },
+    "morale": 6,
+    "weaponCategory": "cutting",
+    "loot": ["5-gold"]
+  },
+  {
+    "id": "raider",
+    "name": "Raider",
+    "stats": { "melee": 4, "ranged": 1, "defense": 3, "resolve": 3, "initiative": 3, "maxHp": 13 },
+    "morale": 7,
+    "weaponCategory": "cutting",
+    "loot": ["8-gold", "shortsword"]
+  },
+  {
+    "id": "archer",
+    "name": "Archer",
+    "stats": { "melee": 1, "ranged": 4, "defense": 2, "resolve": 2, "initiative": 4, "maxHp": 9 },
+    "morale": 5,
+    "weaponCategory": "piercing",
+    "loot": ["3-gold", "hunting-bow"]
+  },
+  {
+    "id": "brute",
+    "name": "Brute",
+    "stats": { "melee": 5, "ranged": 0, "defense": 4, "resolve": 4, "initiative": 1, "maxHp": 18 },
+    "morale": 8,
+    "weaponCategory": "blunt",
+    "loot": ["10-gold", "war-hammer"]
+  },
+  {
+    "id": "bandit-leader",
+    "name": "Bandit Leader",
+    "stats": { "melee": 5, "ranged": 2, "defense": 4, "resolve": 6, "initiative": 3, "maxHp": 16 },
+    "morale": 10,
+    "weaponCategory": "cutting",
+    "loot": ["20-gold", "longsword", "leather-armor"],
+    "named": true
+  }
+]
