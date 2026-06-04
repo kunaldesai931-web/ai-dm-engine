@@ -19,7 +19,7 @@ import { generateHireling } from './generator.js';
 import { gainXp, levelUp, xpToNextLevel } from './progression.js';
 import {
   startBattle,
-  moveUnit,
+  playerMoveUnit,
   resolveAttack,
   getBattleOutcome,
   endBattle,
@@ -321,7 +321,7 @@ function main() {
       if (!state.activeBattle) throw new EngineError('no active battle');
       const actor = currentActorId(state);
       if (unitId !== actor) throw new EngineError(`it is ${actor}'s turn, not ${unitId}'s`);
-      state = moveUnit(state, unitId, col, row);
+      state = playerMoveUnit(state, unitId, col, row);
       mutated = true;
       result = { op: 'combat.move', unitId, position: { col, row } };
       break;

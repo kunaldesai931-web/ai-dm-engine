@@ -241,3 +241,34 @@ test('resolveAttack throws on non-existent target', () => {
   const roller2 = makeRoller(battle.rng);
   assert.throws(() => resolveAttack(battle, 'protagonist', 'ghost', roller2, INJURIES), EngineError);
 });
+
+import { playerMoveUnit, MOVE_RANGE } from './combat.js';
+
+test('MOVE_RANGE is a positive integer', () => {
+  assert.ok(Number.isInteger(MOVE_RANGE) && MOVE_RANGE > 0);
+});
+
+test('playerMoveUnit allows a move within range', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  // protagonist starts near (0,0); move within MOVE_RANGE (use distance 1)
+  const start = battle.activeBattle!.units['protagonist'].position;
+  const target = { col: Math.min(start.col + 1, 4), row: start.row };
+  const moved = playerMoveUnit(battle, 'protagonist', target.col, target.row);
+  assert.equal(moved.activeBattle!.units['protagonist'].position.col, target.col);
+  assert.equal(moved.activeBattle!.units['protagonist'].position.row, target.row);
+});
+
+test('playerMoveUnit rejects a move beyond range', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const start = battle.activeBattle!.units['protagonist'].position;
+  // a tile guaranteed > MOVE_RANGE away in row (board is 8 tall)
+  const farRow = start.row <= 3 ? 7 : 0;
+  const farDist = Math.abs(farRow - start.row);
+  if (farDist > MOVE_RANGE) {
+    assert.throws(() => playerMoveUnit(battle, 'protagonist', start.col, farRow), EngineError);
+  }
+});

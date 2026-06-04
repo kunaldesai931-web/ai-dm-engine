@@ -3,6 +3,9 @@ import type { Roller } from '../core/rng.js';
 import type { TCombatUnit, TRosterMember, TWarbandCampaignState } from './schema.js';
 import type { InjuryEntry } from './progression.js';
 
+// Max Chebyshev distance a unit may move in a single move action. Tunable.
+export const MOVE_RANGE = 3;
+
 export interface EnemySpawn {
   id: string;
   typeId: string;
@@ -218,6 +221,25 @@ export function moveUnit(
       },
     },
   };
+}
+
+// Range-checked move for player-controlled units. Enforces MOVE_RANGE (Chebyshev)
+// from the unit's current position, then delegates to the pure moveUnit. Enemy AI
+// uses moveUnit directly (it only ever steps one tile).
+export function playerMoveUnit(
+  state: TWarbandCampaignState,
+  unitId: string,
+  col: number,
+  row: number,
+): TWarbandCampaignState {
+  if (!state.activeBattle) throw new EngineError('no active battle');
+  const unit = state.activeBattle.units[unitId];
+  if (!unit) throw new EngineError(`unit "${unitId}" not found`);
+  const d = Math.max(Math.abs(unit.position.col - col), Math.abs(unit.position.row - row));
+  if (d > MOVE_RANGE) {
+    throw new EngineError(`${unitId} can move at most ${MOVE_RANGE} tiles (tried ${d})`);
+  }
+  return moveUnit(state, unitId, col, row);
 }
 
 export function endTurn(state: TWarbandCampaignState): TWarbandCampaignState {

@@ -17,7 +17,7 @@ import {
 } from './warbandState.js';
 import {
   startBattle,
-  moveUnit,
+  playerMoveUnit,
   resolveAttack,
   getBattleOutcome,
   endBattle,
@@ -107,7 +107,7 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
       const u = state.activeBattle.units[unitId];
       if (!u || u.role === 'enemy') throw new EngineError('you can only move your own units');
       if (u.hasMoved) throw new EngineError(`${unitId} has already moved this turn`);
-      state = moveUnit(state, unitId, Number(args.col), Number(args.row));
+      state = playerMoveUnit(state, unitId, Number(args.col), Number(args.row));
       narrative = `${unitId} moves to (${args.col},${args.row}).`;
       extra = { currentTurn: currentActorId(state) };
       break;
