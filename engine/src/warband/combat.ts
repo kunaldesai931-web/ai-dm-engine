@@ -182,3 +182,57 @@ export function endBattle(state: TWarbandCampaignState): TWarbandCampaignState {
     hirelings: updatedHirelings,
   };
 }
+
+export function moveUnit(
+  state: TWarbandCampaignState,
+  unitId: string,
+  col: number,
+  row: number,
+): TWarbandCampaignState {
+  if (!state.activeBattle) throw new EngineError('no active battle');
+  if (col < 0 || col > 4) throw new EngineError(`col ${col} out of bounds (0-4)`);
+  if (row < 0 || row > 7) throw new EngineError(`row ${row} out of bounds (0-7)`);
+
+  const unit = state.activeBattle.units[unitId];
+  if (!unit) throw new EngineError(`unit "${unitId}" not found`);
+  if (unit.status !== 'active') throw new EngineError(`unit "${unitId}" cannot move (status: ${unit.status})`);
+
+  const tile = state.activeBattle.grid[row][col];
+  if (tile === 'occupied') throw new EngineError(`tile (${col},${row}) is occupied`);
+  if (tile === 'blocked') throw new EngineError(`tile (${col},${row}) is blocked`);
+
+  const newGrid = state.activeBattle.grid.map((r) => [...r]) as Array<Array<'open' | 'blocked' | 'occupied'>>;
+  newGrid[unit.position.row][unit.position.col] = 'open';
+  newGrid[row][col] = 'occupied';
+
+  return {
+    ...state,
+    activeBattle: {
+      ...state.activeBattle,
+      grid: newGrid,
+      units: {
+        ...state.activeBattle.units,
+        [unitId]: { ...unit, position: { col, row }, hasMoved: true },
+      },
+    },
+  };
+}
+
+export function endTurn(state: TWarbandCampaignState): TWarbandCampaignState {
+  if (!state.activeBattle) throw new EngineError('no active battle');
+  const { turnOrder, currentTurnIndex, units } = state.activeBattle;
+  const nextIndex = (currentTurnIndex + 1) % turnOrder.length;
+  const nextUnitId = turnOrder[nextIndex];
+
+  return {
+    ...state,
+    activeBattle: {
+      ...state.activeBattle,
+      currentTurnIndex: nextIndex,
+      units: {
+        ...units,
+        [nextUnitId]: { ...units[nextUnitId], hasActed: false, hasMoved: false },
+      },
+    },
+  };
+}

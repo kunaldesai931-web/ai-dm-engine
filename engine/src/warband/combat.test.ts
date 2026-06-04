@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startBattle, getBattleOutcome, endBattle } from './combat.js';
+import { startBattle, getBattleOutcome, endBattle, moveUnit, endTurn } from './combat.js';
 import { makeRoller } from '../core/rng.js';
 import { EngineError } from '../core/errors.js';
 import type { TWarbandCampaignState, TRosterMember } from './schema.js';
@@ -104,4 +104,79 @@ test('getBattleOutcome returns player_loss when protagonist dead', () => {
   const battleState = startBattle(state, ENEMIES, roller);
   battleState.activeBattle!.units['protagonist'].status = 'dead';
   assert.equal(getBattleOutcome(battleState), 'player_loss');
+});
+
+test('moveUnit updates unit position and grid', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const protagonistPos = battle.activeBattle!.units['protagonist'].position;
+  // Move protagonist to a known open tile (col 2, row 5 — middle of grid, should be open)
+  const moved = moveUnit(battle, 'protagonist', 2, 5);
+  assert.equal(moved.activeBattle!.units['protagonist'].position.col, 2);
+  assert.equal(moved.activeBattle!.units['protagonist'].position.row, 5);
+  assert.equal(moved.activeBattle!.grid[protagonistPos.row][protagonistPos.col], 'open');
+  assert.equal(moved.activeBattle!.grid[5][2], 'occupied');
+});
+
+test('moveUnit throws on out-of-bounds col', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  assert.throws(() => moveUnit(battle, 'protagonist', 5, 0), EngineError);
+});
+
+test('moveUnit throws on out-of-bounds row', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  assert.throws(() => moveUnit(battle, 'protagonist', 0, 8), EngineError);
+});
+
+test('moveUnit sets hasMoved flag', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const moved = moveUnit(battle, 'protagonist', 2, 5);
+  assert.equal(moved.activeBattle!.units['protagonist'].hasMoved, true);
+});
+
+test('moveUnit does not mutate input state', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const origPos = { ...battle.activeBattle!.units['protagonist'].position };
+  moveUnit(battle, 'protagonist', 2, 5);
+  assert.equal(battle.activeBattle!.units['protagonist'].position.col, origPos.col);
+});
+
+test('endTurn advances currentTurnIndex', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  assert.equal(battle.activeBattle!.currentTurnIndex, 0);
+  const next = endTurn(battle);
+  assert.equal(next.activeBattle!.currentTurnIndex, 1);
+});
+
+test('endTurn wraps around at end of turn order', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const next = endTurn(endTurn(battle));
+  assert.equal(next.activeBattle!.currentTurnIndex, 0);
+});
+
+test('endTurn resets hasActed and hasMoved for the incoming unit', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  // Manually mark current unit as acted/moved
+  const currentId = battle.activeBattle!.turnOrder[0];
+  battle.activeBattle!.units[currentId].hasActed = true;
+  battle.activeBattle!.units[currentId].hasMoved = true;
+  const next = endTurn(battle);
+  const nextId = next.activeBattle!.turnOrder[next.activeBattle!.currentTurnIndex];
+  assert.equal(next.activeBattle!.units[nextId].hasMoved, false);
+  assert.equal(next.activeBattle!.units[nextId].hasActed, false);
 });
