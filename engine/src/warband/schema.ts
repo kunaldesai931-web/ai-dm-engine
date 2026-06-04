@@ -72,6 +72,37 @@ export const CombatUnit = z.object({
   }
 });
 
+const Contract = z.object({
+  id: z.string(),
+  type: z.enum(['bounty', 'raid', 'defense']),
+  title: z.string(),
+  locationId: z.string(),
+  enemySpec: z.string(),
+  goldReward: z.number().int().min(0),
+  intelReward: z.number().int().min(0),
+  expiresDay: z.number().int().min(1),
+});
+
+const Crisis = z.object({
+  name: z.string(),
+  clockFilled: z.number().int().min(0),
+  clockSegments: z.number().int().min(1),
+  intel: z.number().int().min(0),
+  intelNeeded: z.number().int().min(1),
+  unlocked: z.boolean(),
+  resolved: z.boolean(),
+  finalLocationId: z.string(),
+});
+
+const Overworld = z.object({
+  currentLocation: z.string(),
+  provisions: z.number().int().min(0),
+  contracts: z.array(Contract),
+  activeContractId: z.string().nullable(),
+  crisis: Crisis,
+  lastPaydayDay: z.number().int().min(0),
+});
+
 export const WarbandCampaignState = z.object({
   meta: z.object({
     campaign: z.string(),
@@ -88,12 +119,19 @@ export const WarbandCampaignState = z.object({
     turnOrder: z.array(z.string()),
     currentTurnIndex: z.number().int().min(0),
     grid: z.array(z.array(z.enum(['open', 'blocked', 'occupied']))),
+    context: z.object({
+      kind: z.enum(['skirmish', 'contract', 'encounter', 'crisis']),
+      contractId: z.string().optional(),
+    }).optional(),
   }).optional(),
+  overworld: Overworld.optional(),
 });
 
 export type TRosterMember = z.infer<typeof RosterMember>;
 export type TCombatUnit = z.infer<typeof CombatUnit>;
 export type TWarbandCampaignState = z.infer<typeof WarbandCampaignState>;
+export type TContract = z.infer<typeof Contract>;
+export type TOverworld = z.infer<typeof Overworld>;
 
 function wrapParse<T>(schema: z.ZodType<T>, obj: unknown, label: string): T {
   const r = schema.safeParse(obj);
