@@ -46,6 +46,10 @@ export function startBattle(
     if (!hireling.death) playerMembers.push({ id, member: hireling });
   }
 
+  // Guard against empty battles
+  if (playerMembers.length === 0) throw new EngineError('battle requires at least one alive player unit');
+  if (enemies.length === 0) throw new EngineError('battle requires at least one enemy');
+
   // Place player units on left cols (0-1)
   for (let i = 0; i < playerMembers.length; i++) {
     const { id, member } = playerMembers[i];
@@ -82,6 +86,12 @@ export function startBattle(
       hasActed: false,
       hasMoved: false,
     };
+  }
+
+  // Validate grid bounds
+  for (const [uid, u] of Object.entries(units)) {
+    if (u.position.col < 0 || u.position.col > 4) throw new EngineError(`unit "${uid}" placed out of bounds col ${u.position.col}`);
+    if (u.position.row < 0 || u.position.row > 7) throw new EngineError(`unit "${uid}" placed out of bounds row ${u.position.row}`);
   }
 
   // Roll initiative and sort descending
