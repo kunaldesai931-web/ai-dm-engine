@@ -166,7 +166,14 @@
         });
         state = data.state; battle = state.activeBattle || null;
         if (data.narrative) logLine(data.narrative);
-        if (data.battleOutcome && data.battleOutcome !== 'ongoing') logLine('>> ' + data.battleOutcome.toUpperCase());
+        if (Array.isArray(data.log)) data.log.forEach(line => logLine('  ⚔ ' + line));
+        if (data.finished) {
+          const oc = data.outcome || data.battleOutcome;
+          logLine('>> BATTLE OVER: ' + String(oc || '').toUpperCase());
+          if (Array.isArray(data.casualties) && data.casualties.length) {
+            data.casualties.forEach(c => logLine('   ✠ ' + c.name + ': ' + c.result, c.result === 'dead'));
+          }
+        }
         selectedId = null;
         setStatus('');
         render();
