@@ -17,6 +17,15 @@ import {
 import { parseWarbandCampaignState } from './schema.js';
 import { generateHireling } from './generator.js';
 import { gainXp, levelUp, xpToNextLevel } from './progression.js';
+import {
+  startBattle,
+  moveUnit,
+  resolveAttack,
+  endTurn,
+  getBattleOutcome,
+  endBattle,
+  type EnemySpawn,
+} from './combat.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(HERE, '..', '..', '..', 'engine', 'data');
@@ -119,7 +128,19 @@ function main() {
   const sub = positional[1];
 
   if (!cmd || cmd === 'help') {
-    return out({ usage: 'warband campaign create <name> --background <id> [--name <n>] | campaign list | roster list | roster hire --background <id> | roster fire <id> | roster show <id> | progress xp <id> <amount> | progress levelup <id> --perk <id>' });
+    return out({ usage: [
+      'warband campaign create <name> --background <id> [--name <n>]',
+      '       campaign list',
+      '       roster list | roster hire --background <id> | roster fire <id> | roster show <id>',
+      '       progress xp <id> <amount> | progress levelup <id> --perk <id>',
+      '       combat start --enemies "id:type,..."   Start a battle',
+      '       combat status                          Show battle state',
+      '       combat move <unitId> <col> <row>       Move a unit',
+      '       combat attack <attackerId> <targetId>  Resolve an attack',
+      '       combat end-turn                        End current unit\'s turn',
+      '       combat flee                            Retreat from battle',
+      '       combat end                             End a won/lost battle',
+    ].join('\n') });
   }
 
   // No-campaign commands
@@ -239,6 +260,111 @@ function main() {
       state = updateMember(state, id, updated);
       result = { op: 'progress.levelup', id, level: updated.level, xp: updated.xp, perks: updated.perks };
       mutated = true;
+      break;
+    }
+
+    case 'combat start': {
+      const enemiesArg = str(flags.enemies);
+      if (!enemiesArg) throw new EngineError('--enemies "id:type,id:type" required');
+      const enemyDefs = loadData<any[]>('enemies.json');
+      const spawns: EnemySpawn[] = enemiesArg.split(',').map((token) => {
+        const [id, typeId] = token.trim().split(':');
+        if (!id || !typeId) throw new EngineError(`bad enemy token "${token}" — use id:typeId`);
+        const def = enemyDefs.find((d: any) => d.id === typeId);
+        if (!def) throw new EngineError(`unknown enemy type "${typeId}". Available: ${enemyDefs.map((d: any) => d.id).join(', ')}`);
+        return { id, typeId, name: def.name, stats: def.stats, morale: def.morale, weaponCategory: def.weaponCategory, named: def.named ?? false };
+      });
+      const roller = makeRoller(state.rng);
+      state = startBattle(state, spawns, roller);
+      mutated = true;
+      result = {
+        op: 'combat.start',
+        battleId: state.activeBattle!.battleId,
+        turnOrder: state.activeBattle!.turnOrder,
+        units: Object.values(state.activeBattle!.units).map((u) => ({
+          id: u.memberId, name: u.name, role: u.role, hp: u.currentHp, maxHp: u.stats.maxHp, position: u.position, status: u.status,
+        })),
+      };
+      break;
+    }
+
+    case 'combat status': {
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const currentId = state.activeBattle.turnOrder[state.activeBattle.currentTurnIndex];
+      result = {
+        op: 'combat.status',
+        battleId: state.activeBattle.battleId,
+        currentTurn: currentId,
+        turnIndex: state.activeBattle.currentTurnIndex,
+        outcome: getBattleOutcome(state),
+        units: Object.entries(state.activeBattle.units).map(([id, u]) => ({
+          id, name: u.name, role: u.role, hp: u.currentHp, maxHp: u.stats.maxHp, morale: u.morale, position: u.position, status: u.status, hasActed: u.hasActed, hasMoved: u.hasMoved,
+        })),
+        grid: state.activeBattle.grid,
+      };
+      break;
+    }
+
+    case 'combat move': {
+      const unitId = positional[2];
+      const col = parseInt(positional[3] ?? '', 10);
+      const row = parseInt(positional[4] ?? '', 10);
+      if (!unitId || isNaN(col) || isNaN(row)) throw new EngineError('usage: warband combat move <unitId> <col> <row>');
+      state = moveUnit(state, unitId, col, row);
+      mutated = true;
+      result = { op: 'combat.move', unitId, position: { col, row } };
+      break;
+    }
+
+    case 'combat attack': {
+      const attackerId = positional[2];
+      const targetId = positional[3];
+      if (!attackerId || !targetId) throw new EngineError('usage: warband combat attack <attackerId> <targetId>');
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      const attackResult = resolveAttack(state, attackerId, targetId, roller, injuries);
+      state = attackResult.state;
+      mutated = true;
+      result = {
+        op: 'combat.attack',
+        outcome: attackResult.outcome,
+        roll: attackResult.roll,
+        damage: attackResult.damage,
+        injury: attackResult.injuryTriggered,
+        moraleEvents: attackResult.moraleEvents,
+        narrative: attackResult.narrative,
+        targetHp: state.activeBattle!.units[targetId]?.currentHp,
+        targetStatus: state.activeBattle!.units[targetId]?.status,
+        battleOutcome: getBattleOutcome(state),
+      };
+      break;
+    }
+
+    case 'combat end-turn': {
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      state = endTurn(state);
+      mutated = true;
+      const battle = state.activeBattle!;
+      const nextId = battle.turnOrder[battle.currentTurnIndex];
+      result = { op: 'combat.end-turn', nextTurn: nextId, turnIndex: battle.currentTurnIndex };
+      break;
+    }
+
+    case 'combat flee': {
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      state = endBattle(state);
+      mutated = true;
+      result = { op: 'combat.flee', message: 'Retreated from battle. HP carried over.' };
+      break;
+    }
+
+    case 'combat end': {
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const outcome = getBattleOutcome(state);
+      if (outcome === 'ongoing') throw new EngineError('battle is still ongoing — use combat flee to retreat');
+      state = endBattle(state);
+      mutated = true;
+      result = { op: 'combat.end', outcome };
       break;
     }
 
