@@ -5,10 +5,13 @@
   "type": "module",
   "description": "Deterministic tabletop engine. Code owns the dice and state; the LLM narrates.",
   "scripts": {
-    "engine": "./node_modules/.bin/tsx src/cli.ts",
-    "realm": "./node_modules/.bin/tsx src/realm/cli.ts",
+    "engine": "tsx src/cli.ts",
+    "realm": "tsx src/realm/cli.ts",
+    "warband": "tsx src/warband/cli.ts",
+    "warband-serve": "tsx src/warband/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"test/**/*.test.ts\"",
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.mjs"
   },
   "dependencies": {
     "tsx": "^4.22.3",
@@ -16,6 +19,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1"
+    "@types/node": "^25.9.1",
+    "esbuild": "^0.24.0"
   }
 }

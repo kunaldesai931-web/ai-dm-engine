@@ -1,0 +1,17 @@
+{
+  "blunt": [
+    { "id": "cracked-rib", "name": "Cracked Rib", "stat": "initiative", "amount": -1 },
+    { "id": "broken-arm", "name": "Broken Arm", "stat": "melee", "amount": -1 },
+    { "id": "concussion", "name": "Concussion", "stat": "resolve", "amount": -2 }
+  ],
+  "cutting": [
+    { "id": "sword-arm-cut", "name": "Sword Arm Cut", "stat": "melee", "amount": -1 },
+    { "id": "hamstrung", "name": "Hamstrung", "stat": "initiative", "amount": -1 },
+    { "id": "slashed-side", "name": "Slashed Side", "stat": "defense", "amount": -1 }
+  ],
+  "piercing": [
+    { "id": "gut-wound", "name": "Gut Wound", "stat": "resolve", "amount": -1 },
+    { "id": "pierced-lung", "name": "Pierced Lung", "stat": "initiative", "amount": -1 },
+    { "id": "eye-wound", "name": "Eye Wound", "stat": "ranged", "amount": -2 }
+  ]
+}

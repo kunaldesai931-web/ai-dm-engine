@@ -1,0 +1,12 @@
+[
+  { "id": "shield-wall", "name": "Shield Wall", "description": "+2 Defense when adjacent to an ally." },
+  { "id": "counter-attack", "name": "Counter-Attack", "description": "On a miss by 5+, attacker takes 1d4 damage." },
+  { "id": "iron-will", "name": "Iron Will", "description": "+2 Resolve for all morale checks." },
+  { "id": "quick-hands", "name": "Quick Hands", "description": "Swap weapons without spending an action." },
+  { "id": "steady-aim", "name": "Steady Aim", "description": "+2 Ranged when you did not move this turn." },
+  { "id": "quick-shot", "name": "Quick Shot", "description": "Ranged attack costs half movement." },
+  { "id": "tracker", "name": "Tracker", "description": "Encounter chance halved when you lead travel." },
+  { "id": "nimble", "name": "Nimble", "description": "+1 Speed." },
+  { "id": "fortify", "name": "Fortify", "description": "+3 Defense on your turn if you do not move." },
+  { "id": "rallying-cry", "name": "Rallying Cry", "description": "Once per battle: allies within 2 tiles gain +2 Resolve until end of round." }
+]

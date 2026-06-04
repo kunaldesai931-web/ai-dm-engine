@@ -5,13 +5,14 @@
     "edition": "5.1-SRD",
     "tone": "high fantasy",
     "canonVersion": "1.0",
-    "currentRegion": "greywater-crossing",
-    "worldTime": "Dusk, the first day",
-    "sessionNumber": 2
+    "currentRegion": "crale",
+    "worldTime": "Pre-dawn, second day",
+    "sessionNumber": 3,
+    "rulesetId": "5e"
   },
   "rng": {
     "seed": "hollow-road-001",
-    "cursor": 17
+    "cursor": 81
   },
   "houseRules": {
     "noInventedNumbers": true,
@@ -21,7 +22,7 @@
     "aldric": {
       "name": "Aldric Thorne",
       "class": "Fighter",
-      "level": 1,
+      "level": 2,
       "abilities": {
         "str": 16,
         "dex": 13,
@@ -35,9 +36,13 @@
       "speed": 30,
       "initiativeMod": 1,
       "hp": {
-        "current": 12,
-        "max": 12,
+        "current": 14,
+        "max": 15,
         "temp": 0
+      },
+      "hitDice": {
+        "used": 0,
+        "max": 2
       },
       "saves": [
         "str",
@@ -55,6 +60,18 @@
         "fighting-style-great-weapon-fighting",
         "second-wind"
       ],
+      "resources": {
+        "second-wind": {
+          "used": 0,
+          "max": 1,
+          "recharge": "short"
+        },
+        "action-surge": {
+          "used": 1,
+          "max": 1,
+          "recharge": "short"
+        }
+      },
       "conditions": [],
       "effects": [],
       "inventory": [
@@ -80,9 +97,15 @@
           "note": "Iron seal of the Vellmark Trading Company. The only thing left of the convoy."
         }
       ],
-      "xp": 50,
+      "xp": 350,
       "race": "Human",
-      "background": "Caravan guard"
+      "background": "Caravan guard",
+      "inventory[5]": {
+        "id": "amulet-of-warding",
+        "qty": 1,
+        "note": "Druid-gifted disc worn as amulet. Advantage on WIS saves vs charm and domination effects."
+      },
+      "features[2]": "action-surge"
     }
   },
   "npcs": {
@@ -108,7 +131,7 @@
         "goal": "Expose the conspiracy publicly — sunlight, not a quiet deal or a body in a ditch",
         "secret": "The threshold has an informant in Crale's market committee; she suspects who but can't prove it",
         "voice": "Direct, hands busy when nervous, asks before she gives anything",
-        "attitude": "wary-ally — Aldric's token is proof she needs, but she doesn't trust his judgment yet"
+        "attitude": "committed ally (conditional) — won over by Aldric's free, corroborating account of the silver-eyed convoy and the cloaked man; allied on one hard term: all findings go to Crale's public committee, no back-room deals"
       }
     },
     "mira-voss": {
@@ -150,6 +173,36 @@
         "voice": "Short sentences, answers the literal question, never volunteers",
         "attitude": "closed-by-fear — will only talk if silence feels more dangerous than speaking"
       }
+    },
+    "agent-a": {
+      "name": "Bandit",
+      "ac": 12,
+      "initiativeMod": 1,
+      "hp": {
+        "current": 0,
+        "max": 11,
+        "temp": 0
+      },
+      "conditions": [
+        "unconscious"
+      ],
+      "srdMonster": "bandit",
+      "cr": 0.125
+    },
+    "agent-b": {
+      "name": "Bandit",
+      "ac": 12,
+      "initiativeMod": 1,
+      "hp": {
+        "current": 0,
+        "max": 11,
+        "temp": 0
+      },
+      "conditions": [
+        "unconscious"
+      ],
+      "srdMonster": "bandit",
+      "cr": 0.125
     }
   },
   "party": {
@@ -188,10 +241,26 @@
       "intro": "Aldric woke at Greywater Crossing with no memory of how the convoy fell",
       "clues": [
         "Iron company token in his hand",
-        "No bodies found at the wreck"
+        "No bodies found at the wreck",
+        "Recovered memory (Wendel's draught): the convoy guards bore the wolf's silver eyes — enchanted, not slain",
+        "They followed a hooded man in a black cloak of their own will — 'no bodies' is abduction by domination, not death",
+        "Aldric alone was left frozen, alive, and unmarked"
       ],
       "hidden": "What took the convoy, and why Aldric was spared",
-      "urgency": "high"
+      "urgency": "high",
+      "clues[5]": "Holt corroborates: 16 people loaded onto a covered wagon at south dock of Greywater Crossing, silver-eyed, walking willingly",
+      "clues[6]": "Wagon marked with a door-frame brand (two uprights and a lintel) — the Threshold sigil",
+      "clues[7]": "The cloaked figure wore a heavy silver ring with a flat dark-red stone",
+      "clues[8]": "Convoy traveled north on the mill road after loading",
+      "clues[9]": "Aldric was NOT among the 16 loaded — left behind deliberately; reason unknown"
+    }
+  },
+  "clocks": {
+    "thornhalt-transit": {
+      "label": "Convoy moves north",
+      "segments": 6,
+      "filled": 2,
+      "trigger": "convoy lost"
     }
   },
   "combat": {
@@ -203,6 +272,10 @@
       {
         "t": "2026-05-30T03:14:07.458Z",
         "summary": "Session 1 complete: convoy mystery established, threshold identified as directed operation, three leads open (Sera, Corvin, the clearing)"
+      },
+      {
+        "t": "2026-06-04T17:17:43.646Z",
+        "summary": "Session 3 (acceptance play-test): Aldric went straight at Holt on the Crale docks pre-dawn, no subtlety — Intimidation failed by one (14 vs DC15). Holt held; his terror of the threshold outweighs Aldric. A hooded watcher observed and slipped into the fog. Convoy clock 1->2."
       }
     ]
   }

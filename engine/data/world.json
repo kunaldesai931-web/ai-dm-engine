@@ -1,0 +1,33 @@
+{
+  "regions": [
+    {
+      "id": "border-marches",
+      "name": "The Border Marches",
+      "danger": 2,
+      "locations": [
+        { "id": "ironhold", "name": "Ironhold", "type": "town", "start": true },
+        { "id": "redford", "name": "Redford", "type": "town" },
+        { "id": "stonewatch", "name": "Stonewatch", "type": "town" },
+        { "id": "old-mill", "name": "The Old Mill", "type": "landmark" }
+      ],
+      "routes": [
+        { "from": "ironhold", "to": "redford", "days": 2 },
+        { "from": "ironhold", "to": "stonewatch", "days": 3 },
+        { "from": "redford", "to": "old-mill", "days": 1 },
+        { "from": "stonewatch", "to": "old-mill", "days": 2 }
+      ]
+    }
+  ],
+  "crisis": {
+    "name": "The Ironblood Warlord unites the border clans",
+    "clockSegments": 8,
+    "intelNeeded": 5,
+    "finalLocationId": "old-mill",
+    "finalEnemySpec": "warlord:bandit-leader,guard1:raider,guard2:raider"
+  },
+  "contractTemplates": [
+    { "type": "bounty", "title": "Bounty: {loc} raiders", "enemyPool": ["bandit", "raider"], "size": 2, "gold": 40, "intel": 1 },
+    { "type": "raid", "title": "Raid the camp near {loc}", "enemyPool": ["raider", "archer", "brute"], "size": 3, "gold": 70, "intel": 2 },
+    { "type": "defense", "title": "Defend {loc} from a war band", "enemyPool": ["bandit", "bandit", "archer"], "size": 3, "gold": 60, "intel": 1 }
+  ]
+}

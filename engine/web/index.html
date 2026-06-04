@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warband</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #020617; --line: #1f2937; --muted: #6b7280;
+      --text: #e5e7eb; --accent: #38bdf8;
+      --protagonist: #38bdf8; --companion: #86efac; --hireling: #fde68a; --enemy: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; height: 100vh; background: var(--bg); color: var(--text);
+      font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; font-size: 14px;
+      display: flex; flex-direction: column;
+    }
+    header {
+      padding: .6rem 1rem; background: var(--panel); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    .title { color: var(--accent); text-transform: uppercase; letter-spacing: .1em; font-weight: bold; }
+    select, input, button {
+      font-family: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+      border: 1px solid var(--line); border-radius: 6px; padding: .35rem .6rem;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    main { flex: 1; display: grid; grid-template-columns: auto 1fr; gap: 1rem; padding: 1rem; overflow: auto; }
+    .col { display: flex; flex-direction: column; gap: .75rem; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .75rem; }
+    .card h3 { margin: 0 0 .5rem; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    /* grid */
+    #grid { position: relative; }
+    .tile {
+      position: absolute; display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); background: var(--bg);
+    }
+    .tile.movable { background: #102a3a; cursor: pointer; }
+    .tile.current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .coords { position: absolute; bottom: 1px; right: 3px; font-size: 9px; color: #374151; pointer-events: none; }
+    .token {
+      width: 42px; height: 42px; border-radius: 50%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #000; cursor: pointer; user-select: none;
+    }
+    .token.selectable { outline: 2px solid #fff6; }
+    .token.selected { outline: 3px solid #fff; }
+    .token.attackable { outline: 2px dashed #fff; }
+    .token .nm { font-size: 10px; font-weight: bold; line-height: 1; }
+    .token .hp { font-size: 11px; line-height: 1; }
+    /* roster */
+    .urow { display: flex; gap: .5rem; align-items: center; padding: .25rem .4rem; background: var(--bg); border-radius: 6px; margin-bottom: .25rem; border-left: 3px solid var(--muted); }
+    .urow .nm { min-width: 70px; }
+    .urow .stat { color: var(--muted); font-size: 12px; }
+    .bar { height: 5px; border-radius: 3px; background: #1f2937; overflow: hidden; width: 70px; }
+    .bar > span { display: block; height: 100%; background: #4ade80; }
+    /* log */
+    #log { max-height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.5; }
+    #log .entry { padding: .15rem 0; border-bottom: 1px solid #0f172a; }
+    .hint { font-size: 12px; color: var(--muted); min-height: 1.2em; }
+    .err { color: var(--enemy); }
+    .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .empty { color: var(--muted); padding: 1.5rem; text-align: center; }
+    /* overworld */
+    #overworld { display: flex; flex-direction: column; gap: .75rem; }
+    .ow-status { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; }
+    .ow-status .here { color: var(--accent); font-weight: bold; }
+    .ow-status .stat { color: var(--muted); }
+    .ow-box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .6rem; }
+    .ow-box h4 { margin: 0 0 .4rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .ow-flag { color: var(--hireling); font-weight: bold; }
+    .ow-win { color: var(--companion); font-weight: bold; }
+    .ow-crisis-btn { border-color: var(--enemy); color: var(--enemy); }
+    .ow-crisis-btn:hover { border-color: var(--enemy); background: #2a1010; }
+    .ow-contract { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .4rem .5rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; margin-bottom: .35rem; }
+    .ow-contract.active { border-color: var(--accent); }
+    .ow-contract .ttl { font-weight: bold; min-width: 120px; }
+    .ow-contract .meta { color: var(--muted); font-size: 12px; }
+    .ow-contract .reward { color: var(--companion); font-size: 12px; }
+    .ow-active-tag { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .ow-travel-hint { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="title">⚔ Warband</span>
+    <label>Campaign
+      <select id="campaign"></select>
+    </label>
+    <span id="turnInfo" class="stat"></span>
+    <span style="flex:1"></span>
+    <span id="status" class="hint"></span>
+  </header>
+
+  <main>
+    <div class="col">
+      <div class="card">
+        <h3 id="mainCardTitle">Battle Grid</h3>
+        <div id="grid"></div>
+        <div id="overworld" style="display:none"></div>
+        <div id="noBattle" class="empty" style="display:none">No active battle</div>
+      </div>
+      <div class="card">
+        <h3>Actions</h3>
+        <div id="actionHint" class="hint">Select one of your units, then click a highlighted tile to move or an enemy to attack.</div>
+        <div class="controls" style="margin-top:.5rem">
+          <button id="endTurnBtn">End Turn</button>
+          <button id="fleeBtn">Flee</button>
+          <button id="endBtn">End Battle</button>
+        </div>
+        <div class="controls" style="margin-top:.6rem">
+          <input id="enemySpec" value="b1:bandit,b2:archer" size="22" />
+          <button id="startBtn">Start Battle</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h3>Roster</h3>
+        <div id="roster"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const COLS = 5, ROWS = 8, TILE = 56;
+    const ROLE_COLOR = { protagonist: '#38bdf8', companion: '#86efac', hireling: '#fde68a', enemy: '#f87171' };
+
+    const el = (id) => document.getElementById(id);
+    let state = null;        // full campaign state
+    let battle = null;       // state.activeBattle
+    let selectedId = null;   // selected player unit id
+    let campaign = null;
+    let world = null;        // static world def (regions/locations/routes/crisis)
+
+    function isPlayer(u) { return u.role !== 'enemy'; }
+
+    function locName(id) {
+      if (!world || !id) return id || '';
+      for (const region of world.regions || []) {
+        for (const loc of region.locations || []) {
+          if (loc.id === id) return loc.name;
+        }
+      }
+      return id;
+    }
+
+    // undirected neighbors of a location: [{ id, name, days }]
+    function neighborsOf(locId) {
+      const out = [];
+      if (!world) return out;
+      const seen = new Set();
+      for (const region of world.regions || []) {
+        for (const r of region.routes || []) {
+          let other = null;
+          if (r.from === locId) other = r.to;
+          else if (r.to === locId) other = r.from;
+          if (other && !seen.has(other)) {
+            seen.add(other);
+            out.push({ id: other, name: locName(other), days: r.days });
+          }
+        }
+      }
+      return out;
+    }
+    function unitAt(col, row) { return battle ? Object.values(battle.units).find(u => u.position.col === col && u.position.row === row) : null; }
+    function logLine(text, isErr) {
+      const d = document.createElement('div');
+      d.className = 'entry' + (isErr ? ' err' : '');
+      d.textContent = text;
+      el('log').prepend(d);
+    }
+    function setStatus(msg, isErr) { const s = el('status'); s.textContent = msg || ''; s.className = 'hint' + (isErr ? ' err' : ''); }
+
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+
+    async function loadCampaigns() {
+      const { campaigns } = await api('/api/warband/campaigns');
+      const sel = el('campaign');
+      sel.innerHTML = '';
+      if (!campaigns.length) { sel.innerHTML = '<option value="">(none — create one via CLI)</option>'; return; }
+      for (const c of campaigns) {
+        const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+      }
+      campaign = sel.value;
+    }
+
+    async function refresh() {
+      if (!campaign) { battle = null; render(); return; }
+      try {
+        state = await api('/api/warband/state?campaign=' + encodeURIComponent(campaign));
+        battle = state.activeBattle || null;
+        setStatus('');
+        render();
+      } catch (e) { setStatus(e.message, true); }
+    }
+
+    async function command(command, args) {
+      try {
+        const data = await api('/api/warband/command', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaign, command, args: args || {} }),
+        });
+        state = data.state; battle = state.activeBattle || null;
+        if (data.narrative) logLine(data.narrative);
+        if (Array.isArray(data.log)) data.log.forEach(line => logLine('  ⚔ ' + line));
+        if (data.encounter) logLine('Ambushed on the road!');
+        if (Array.isArray(data.deserted) && data.deserted.length) {
+          logLine('Hirelings deserted: ' + data.deserted.map(d => (d && d.name) ? d.name : d).join(', '), true);
+        }
+        if (data.contractResolved) {
+          const cr = data.contractResolved;
+          const outcome = typeof cr === 'string' ? cr : (cr.outcome || cr.result || (cr.win ? 'win' : 'loss'));
+          logLine('Contract: ' + outcome);
+        }
+        if (data.campaignWon) logLine('★ THE WARLORD FALLS — CAMPAIGN WON');
+        if (data.finished) {
+          const oc = data.outcome || data.battleOutcome;
+          logLine('>> BATTLE OVER: ' + String(oc || '').toUpperCase());
+          if (Array.isArray(data.casualties) && data.casualties.length) {
+            data.casualties.forEach(c => logLine('   ✠ ' + c.name + ': ' + c.result, c.result === 'dead'));
+          }
+        }
+        selectedId = null;
+        setStatus('');
+        render();
+      } catch (e) { setStatus(e.message, true); logLine('✗ ' + e.message, true); }
+    }
+
+    function chebyshev(a, b) { return Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)); }
+
+    function render() {
+      const grid = el('grid');
+      const ow = el('overworld');
+      if (!battle) {
+        grid.style.display = 'none';
+        el('turnInfo').textContent = '';
+        if (state && state.overworld) {
+          el('mainCardTitle').textContent = 'Overworld';
+          ow.style.display = 'flex';
+          el('noBattle').style.display = 'none';
+          renderOverworld();
+        } else {
+          el('mainCardTitle').textContent = 'Battle Grid';
+          ow.style.display = 'none';
+          el('noBattle').style.display = 'block';
+        }
+        renderRoster();
+        return;
+      }
+      el('mainCardTitle').textContent = 'Battle Grid';
+      ow.style.display = 'none';
+      grid.style.display = 'block'; el('noBattle').style.display = 'none';
+      grid.style.width = COLS * TILE + 'px'; grid.style.height = ROWS * TILE + 'px';
+      grid.innerHTML = '';
+
+      const currentId = battle.turnOrder[battle.currentTurnIndex];
+      el('turnInfo').innerHTML = 'Turn: <b style="color:var(--accent)">' + currentId + '</b>';
+      const selected = selectedId ? battle.units[selectedId] : null;
+
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const unit = unitAt(col, row);
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          Object.assign(tile.style, { width: TILE + 'px', height: TILE + 'px', left: col * TILE + 'px', top: row * TILE + 'px' });
+
+          // movable highlight: empty tile while a player unit is selected
+          if (selected && !unit) {
+            tile.classList.add('movable');
+            tile.onclick = () => command('move', { unitId: selectedId, col, row });
+          }
+
+          if (unit) {
+            const tok = document.createElement('div');
+            tok.className = 'token';
+            tok.style.background = ROLE_COLOR[unit.role] || '#9ca3af';
+            tok.style.opacity = ({ active: 1, stunned: .7, routing: .5, down: .3, dead: .15 })[unit.status] ?? 1;
+            tok.title = unit.name + '  HP ' + unit.currentHp + '/' + unit.stats.maxHp + '  morale ' + unit.morale + '  [' + unit.status + ']';
+            tok.innerHTML = '<div class="nm">' + unit.name.slice(0, 3) + '</div><div class="hp">' + unit.currentHp + '</div>';
+
+            const alive = unit.status !== 'dead' && unit.status !== 'routing';
+            if (isPlayer(unit) && alive) {
+              tok.classList.add('selectable');
+              if (unit.memberId === selectedId) tok.classList.add('selected');
+              tok.onclick = (ev) => { ev.stopPropagation(); selectedId = (selectedId === unit.memberId ? null : unit.memberId); render(); };
+            } else if (!isPlayer(unit) && alive && selected) {
+              tok.classList.add('attackable');
+              tok.onclick = (ev) => { ev.stopPropagation(); command('attack', { attackerId: selectedId, targetId: unit.memberId }); };
+            }
+            if (unit.memberId === currentId) tile.classList.add('current');
+            tile.appendChild(tok);
+          }
+
+          const c = document.createElement('div'); c.className = 'coords'; c.textContent = col + ',' + row;
+          tile.appendChild(c);
+          grid.appendChild(tile);
+        }
+      }
+
+      el('actionHint').textContent = selected
+        ? ('Selected ' + selected.name + ' — click a highlighted tile to move, or a dashed enemy to attack. Click the token again to deselect.')
+        : 'Select one of your units (white outline), then move or attack.';
+
+      renderRoster();
+    }
+
+    function renderOverworld() {
+      const ow = el('overworld');
+      const o = state.overworld;
+      const meta = state.meta || {};
+      const cur = o.currentLocation;
+      const crisis = o.crisis || {};
+      const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+      let html = '';
+
+      // status line
+      html += '<div class="ow-status">' +
+        '<span class="here">' + esc(locName(cur)) + '</span>' +
+        '<span class="stat">Day ' + esc(meta.day) + '</span>' +
+        '<span class="stat">Gold ' + esc(meta.gold) + '</span>' +
+        '<span class="stat">Provisions ' + esc(o.provisions) + '</span>' +
+        '</div>';
+
+      // crisis box
+      html += '<div class="ow-box"><h4>Crisis</h4>' +
+        '<div>' + esc(crisis.name) + '</div>' +
+        '<div class="stat">Intel ' + esc(crisis.intel) + '/' + esc(crisis.intelNeeded) +
+        ' &nbsp;·&nbsp; Clock ' + esc(crisis.clockFilled) + '/' + esc(crisis.clockSegments) + '</div>';
+      if (crisis.resolved) {
+        html += '<div class="ow-win">★ CAMPAIGN WON</div>';
+      } else if (crisis.unlocked) {
+        html += '<div class="ow-flag">⚠ Final battle available</div>';
+      }
+      html += '</div>';
+
+      // travel
+      const neighbors = neighborsOf(cur);
+      html += '<div class="ow-box"><h4>Travel</h4>';
+      if (neighbors.length) {
+        html += '<div class="controls">' + neighbors.map(n =>
+          '<button data-travel="' + esc(n.id) + '">Travel to ' + esc(n.name) + ' (' + esc(n.days) + 'd)</button>'
+        ).join('') + '</div>';
+      } else {
+        html += '<div class="ow-travel-hint">No known routes from here.</div>';
+      }
+      html += '</div>';
+
+      // contracts board
+      const contracts = o.contracts || [];
+      html += '<div class="ow-box"><h4>Contracts</h4>';
+      if (!contracts.length) {
+        html += '<div class="ow-travel-hint">No contracts available.</div>';
+      } else {
+        html += contracts.map(c => {
+          const isActive = o.activeContractId === c.id;
+          let row = '<div class="ow-contract' + (isActive ? ' active' : '') + '">' +
+            '<span class="ttl">' + esc(c.title) + '</span>' +
+            '<span class="meta">→ ' + esc(locName(c.locationId)) + '</span>' +
+            '<span class="reward">' + esc(c.goldReward) + 'g +' + esc(c.intelReward) + ' intel</span>';
+          if (isActive) {
+            row += '<span class="ow-active-tag">active</span>';
+            if (cur === c.locationId) {
+              row += '<button data-start-contract="1">Start Contract</button>';
+            } else {
+              row += '<span class="ow-travel-hint">→ travel to ' + esc(locName(c.locationId)) + '</span>';
+            }
+          } else {
+            row += '<button data-take="' + esc(c.id) + '">Take</button>';
+          }
+          row += '</div>';
+          return row;
+        }).join('');
+      }
+      html += '</div>';
+
+      // actions: crisis start + pay wages
+      html += '<div class="controls">';
+      if (crisis.unlocked && !crisis.resolved && cur === crisis.finalLocationId) {
+        html += '<button class="ow-crisis-btn" data-start-crisis="1">Confront the Warlord</button>';
+      }
+      html += '<button data-pay-wages="1">Pay Wages</button>';
+      html += '</div>';
+
+      ow.innerHTML = html;
+
+      // wire buttons
+      ow.querySelectorAll('[data-travel]').forEach(b =>
+        b.onclick = () => command('travel', { to: b.getAttribute('data-travel') }));
+      ow.querySelectorAll('[data-take]').forEach(b =>
+        b.onclick = () => command('take-contract', { contractId: b.getAttribute('data-take') }));
+      ow.querySelectorAll('[data-start-contract]').forEach(b =>
+        b.onclick = () => command('start-contract'));
+      ow.querySelectorAll('[data-start-crisis]').forEach(b =>
+        b.onclick = () => command('start-crisis'));
+      ow.querySelectorAll('[data-pay-wages]').forEach(b =>
+        b.onclick = () => command('pay-wages'));
+    }
+
+    function renderRoster() {
+      const r = el('roster');
+      if (!battle) {
+        r.innerHTML = state && state.protagonist
+          ? rosterRow(state.protagonist) + Object.values(state.companions || {}).map(rosterRow).join('') + Object.values(state.hirelings || {}).map(rosterRow).join('')
+          : '<div class="empty">No campaign loaded</div>';
+        return;
+      }
+      const currentId = battle.turnOrder[battle.currentTurnIndex];
+      r.innerHTML = Object.values(battle.units).map(u => {
+        const pct = Math.round(100 * u.currentHp / u.stats.maxHp);
+        const turn = u.memberId === currentId ? ' <span style="color:var(--accent)">← turn</span>' : '';
+        return '<div class="urow" style="border-left-color:' + (ROLE_COLOR[u.role] || '#9ca3af') + ';opacity:' +
+          (({ active: 1, stunned: .7, routing: .5, down: .35, dead: .2 })[u.status] ?? 1) + '">' +
+          '<span class="nm" style="color:' + (ROLE_COLOR[u.role] || '#9ca3af') + '">' + u.name + '</span>' +
+          '<span class="bar"><span style="width:' + pct + '%;background:' + (pct > 50 ? '#4ade80' : pct > 25 ? '#fbbf24' : '#f87171') + '"></span></span>' +
+          '<span class="stat">' + u.currentHp + '/' + u.stats.maxHp + '</span>' +
+          '<span class="stat">m' + u.morale + '</span>' +
+          '<span class="stat">[' + u.status + ']</span>' + turn + '</div>';
+      }).join('');
+    }
+
+    function rosterRow(m) {
+      const hp = m.stats.hp ?? m.stats.maxHp;
+      return '<div class="urow" style="border-left-color:' + (ROLE_COLOR[m.role] || '#9ca3af') + '">' +
+        '<span class="nm" style="color:' + (ROLE_COLOR[m.role] || '#9ca3af') + '">' + m.name + '</span>' +
+        '<span class="stat">' + hp + '/' + m.stats.maxHp + ' HP</span>' +
+        '<span class="stat">lvl ' + m.level + '</span>' +
+        '<span class="stat">' + (m.injuries && m.injuries.length ? m.injuries.length + ' injuries' : '') + '</span></div>';
+    }
+
+    // wiring
+    el('campaign').onchange = (e) => { campaign = e.target.value; selectedId = null; refresh(); };
+    el('endTurnBtn').onclick = () => command('end-turn');
+    el('fleeBtn').onclick = () => command('flee');
+    el('endBtn').onclick = () => command('end');
+    el('startBtn').onclick = () => command('start', { enemies: el('enemySpec').value });
+
+    (async () => {
+      try { world = await api('/api/warband/world'); }
+      catch (e) { setStatus('world load failed: ' + e.message, true); }
+      await loadCampaigns();
+      await refresh();
+      setInterval(refresh, 3000); // keep state fresh if the CLI mutates it too
+    })();
+  </script>
+</body>
+</html>

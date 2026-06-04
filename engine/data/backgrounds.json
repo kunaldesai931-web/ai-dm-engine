@@ -1,0 +1,38 @@
+[
+  {
+    "id": "sellsword",
+    "name": "Sellsword",
+    "description": "A mercenary who fights for coin. Knows steel.",
+    "stats": { "melee": 4, "ranged": 1, "defense": 3, "resolve": 2, "initiative": 3, "maxHp": 14 },
+    "startingTrait": "hardened",
+    "startingGear": ["shortsword", "shield", "leather-armor"],
+    "perkPool": ["shield-wall", "counter-attack", "iron-will", "quick-hands"]
+  },
+  {
+    "id": "hunter",
+    "name": "Hunter",
+    "description": "Grew up in the wilds. Patient and precise.",
+    "stats": { "melee": 2, "ranged": 5, "defense": 2, "resolve": 3, "initiative": 5, "maxHp": 11 },
+    "startingTrait": "eagle-eyed",
+    "startingGear": ["hunting-bow", "quiver", "padded-armor"],
+    "perkPool": ["steady-aim", "quick-shot", "tracker", "nimble"]
+  },
+  {
+    "id": "hedge-knight",
+    "name": "Hedge Knight",
+    "description": "Trained for war but without a lord. Pride intact.",
+    "stats": { "melee": 3, "ranged": 1, "defense": 5, "resolve": 4, "initiative": 2, "maxHp": 16 },
+    "startingTrait": "disciplined",
+    "startingGear": ["longsword", "kite-shield", "chainmail"],
+    "perkPool": ["shield-wall", "fortify", "rallying-cry", "iron-will"]
+  },
+  {
+    "id": "deserter",
+    "name": "Deserter",
+    "description": "Walked away from a war. Has seen things. Resolute.",
+    "stats": { "melee": 3, "ranged": 3, "defense": 3, "resolve": 5, "initiative": 3, "maxHp": 12 },
+    "startingTrait": "battle-hardened",
+    "startingGear": ["spear", "leather-armor", "provisions"],
+    "perkPool": ["iron-will", "counter-attack", "steady-aim", "rallying-cry"]
+  }
+]
