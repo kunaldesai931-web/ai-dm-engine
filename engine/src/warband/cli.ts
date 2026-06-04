@@ -26,6 +26,7 @@ import {
   type EnemySpawn,
 } from './combat.js';
 import { currentActorId, advanceTurn, runEnemyTurns, concludeBattle } from './turn.js';
+import * as overworld from './overworld.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(HERE, '..', '..', '..', 'engine', 'data');
@@ -76,6 +77,61 @@ type Background = {
 };
 
 type PerkDef = { id: string; name: string; description: string; };
+
+// Parse an "id:typeId,..." enemy spec into EnemySpawn[] (mirrors `combat start`).
+function spawnsFromSpec(spec: string): EnemySpawn[] {
+  if (!spec) throw new EngineError('enemies spec required, e.g. "b1:bandit,b2:archer"');
+  const defs = loadData<any[]>('enemies.json');
+  return spec.split(',').map((tok) => {
+    const parts = tok.trim().split(':');
+    if (parts.length !== 2) throw new EngineError(`bad enemy token "${tok.trim()}" — expected id:typeId`);
+    const [id, typeId] = parts;
+    const def = defs.find((d: any) => d.id === typeId);
+    if (!def) throw new EngineError(`unknown enemy type "${typeId}". Available: ${defs.map((d: any) => d.id).join(', ')}`);
+    return { id, typeId, name: def.name, stats: def.stats, morale: def.morale, weaponCategory: def.weaponCategory, named: def.named ?? false };
+  });
+}
+
+// Conclude a decided battle and credit any overworld context reward. The
+// context tag must be read BEFORE concludeBattle (which drops activeBattle).
+function concludeWithRewards(
+  state: import('./schema.js').TWarbandCampaignState,
+  roller: import('../core/rng.js').Roller,
+): {
+  state: import('./schema.js').TWarbandCampaignState;
+  finished: boolean;
+  outcome?: string;
+  casualties?: unknown[];
+  contractResolved?: 'win' | 'loss';
+  campaignWon?: boolean;
+} {
+  if (!state.activeBattle) return { state, finished: false };
+  const outcome = getBattleOutcome(state);
+  if (outcome === 'ongoing') return { state, finished: false };
+  const ctx = state.activeBattle.context; // capture BEFORE conclude
+  const c = concludeBattle(state, roller, {
+    battleId: state.activeBattle.battleId,
+    dayOfCampaign: state.meta.day,
+    location: 'the field',
+  });
+  let next = c.state;
+  let reward: { contractResolved?: 'win' | 'loss'; campaignWon?: boolean } = {};
+  if (ctx) {
+    if (ctx.kind === 'contract') {
+      if (outcome === 'player_win') {
+        next = overworld.resolveContractWin(next);
+        reward = { contractResolved: 'win' };
+      } else {
+        next = overworld.resolveContractLoss(next);
+        reward = { contractResolved: 'loss' };
+      }
+    } else if (ctx.kind === 'crisis' && outcome === 'player_win' && next.overworld) {
+      next = { ...next, overworld: { ...next.overworld, crisis: { ...next.overworld.crisis, resolved: true } } };
+      reward = { campaignWon: true };
+    }
+  }
+  return { state: next, finished: true, outcome, casualties: c.casualties, ...reward };
+}
 
 function makeProtagonist(name: string, bg: Background): import('./schema.js').TRosterMember {
   return {
@@ -162,7 +218,7 @@ function main() {
     const protagonistName = str(flags.name) ?? 'Unnamed';
     const protagonist = makeProtagonist(protagonistName, bg);
     const seed = `${campaignName}-${Date.now()}`;
-    const initialState = parseWarbandCampaignState({
+    let initialState = parseWarbandCampaignState({
       meta: { campaign: campaignName, day: 1, gold: 100 },
       rng: { seed, cursor: 0 },
       protagonist,
@@ -170,6 +226,10 @@ function main() {
       hirelings: {},
       activeQuests: [],
     });
+    // Place the new warband in the world with seeded contracts + crisis.
+    const world = loadData<overworld.WorldData>('world.json');
+    const roller = makeRoller(initialState.rng);
+    initialState = overworld.initOverworld(initialState, world, roller);
     const campaign = createWarbandCampaign(campaignName, initialState);
     logWarbandEvent(campaign, { event: 'campaign.create', campaign: campaignName, protagonist: protagonistName, background: bgId });
     return out({ op: 'campaign.create', campaign: campaignName, protagonist: initialState.protagonist, rng: initialState.rng });
@@ -393,6 +453,113 @@ function main() {
       state = endBattle(state);
       mutated = true;
       result = { op: 'combat.end', outcome };
+      break;
+    }
+
+    case 'overworld status': {
+      if (!state.overworld) throw new EngineError('campaign has no overworld; recreate the campaign');
+      const world = loadData<overworld.WorldData>('world.json');
+      result = {
+        op: 'overworld.status',
+        overworld: state.overworld,
+        neighbors: overworld.neighbors(world, state.overworld.currentLocation),
+      };
+      break;
+    }
+
+    case 'overworld contracts': {
+      if (!state.overworld) throw new EngineError('campaign has no overworld; recreate the campaign');
+      result = { op: 'overworld.contracts', contracts: state.overworld.contracts };
+      break;
+    }
+
+    case 'overworld travel': {
+      const to = positional[2];
+      if (!to) throw new EngineError('usage: warband overworld travel <to>');
+      if (!state.overworld) throw new EngineError('campaign has no overworld; recreate the campaign');
+      const world = loadData<overworld.WorldData>('world.json');
+      const roller = makeRoller(state.rng);
+      const r = overworld.travel(state, world, to, roller);
+      state = r.state;
+      const wages = overworld.payWages(state);
+      state = wages.state;
+      let battleExtra: Record<string, unknown> = {};
+      if (r.encounter) {
+        const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+        const spawns = spawnsFromSpec('e1:bandit,e2:bandit');
+        state = startBattle(state, spawns, roller);
+        state = { ...state, activeBattle: { ...state.activeBattle!, context: { kind: 'encounter' } } };
+        const er = runEnemyTurns(state, roller, injuries);
+        state = er.state;
+        const conc = concludeWithRewards(state, roller);
+        state = conc.state;
+        battleExtra = {
+          log: er.log,
+          currentTurn: state.activeBattle ? currentActorId(state) : null,
+          ...(conc.finished ? { finished: true, outcome: conc.outcome, casualties: conc.casualties } : {}),
+        };
+      }
+      mutated = true;
+      result = {
+        op: 'overworld.travel',
+        overworld: state.overworld,
+        encounter: r.encounter,
+        wagesPaid: wages.paid,
+        deserted: wages.deserted,
+        ...battleExtra,
+      };
+      break;
+    }
+
+    case 'overworld take': {
+      const contractId = positional[2];
+      if (!contractId) throw new EngineError('usage: warband overworld take <contractId>');
+      state = overworld.takeContract(state, contractId);
+      mutated = true;
+      result = { op: 'overworld.take', overworld: state.overworld };
+      break;
+    }
+
+    case 'overworld start-contract': {
+      const ow = state.overworld;
+      if (!ow?.activeContractId) throw new EngineError('no active contract');
+      const contract = ow.contracts.find((c) => c.id === ow.activeContractId);
+      if (!contract) throw new EngineError(`active contract ${ow.activeContractId} not found`);
+      if (ow.currentLocation !== contract.locationId) {
+        throw new EngineError(`travel to ${contract.locationId} first`);
+      }
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      state = startBattle(state, spawnsFromSpec(contract.enemySpec), roller);
+      state = { ...state, activeBattle: { ...state.activeBattle!, context: { kind: 'contract', contractId: contract.id } } };
+      const er = runEnemyTurns(state, roller, injuries);
+      state = er.state;
+      const conc = concludeWithRewards(state, roller);
+      state = conc.state;
+      mutated = true;
+      result = {
+        op: 'overworld.start-contract',
+        title: contract.title,
+        log: er.log,
+        currentTurn: state.activeBattle ? currentActorId(state) : null,
+        ...(conc.finished
+          ? {
+              finished: true,
+              outcome: conc.outcome,
+              casualties: conc.casualties,
+              ...(conc.contractResolved ? { contractResolved: conc.contractResolved } : {}),
+            }
+          : {}),
+      };
+      break;
+    }
+
+    case 'overworld pay-wages': {
+      if (!state.overworld) throw new EngineError('campaign has no overworld; recreate the campaign');
+      const r = overworld.payWages(state);
+      state = r.state;
+      mutated = true;
+      result = { op: 'overworld.pay-wages', paid: r.paid, deserted: r.deserted, gold: state.meta.gold };
       break;
     }
 
