@@ -63,6 +63,24 @@
     .err { color: var(--enemy); }
     .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
     .empty { color: var(--muted); padding: 1.5rem; text-align: center; }
+    /* overworld */
+    #overworld { display: flex; flex-direction: column; gap: .75rem; }
+    .ow-status { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; }
+    .ow-status .here { color: var(--accent); font-weight: bold; }
+    .ow-status .stat { color: var(--muted); }
+    .ow-box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .6rem; }
+    .ow-box h4 { margin: 0 0 .4rem; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .ow-flag { color: var(--hireling); font-weight: bold; }
+    .ow-win { color: var(--companion); font-weight: bold; }
+    .ow-crisis-btn { border-color: var(--enemy); color: var(--enemy); }
+    .ow-crisis-btn:hover { border-color: var(--enemy); background: #2a1010; }
+    .ow-contract { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .4rem .5rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; margin-bottom: .35rem; }
+    .ow-contract.active { border-color: var(--accent); }
+    .ow-contract .ttl { font-weight: bold; min-width: 120px; }
+    .ow-contract .meta { color: var(--muted); font-size: 12px; }
+    .ow-contract .reward { color: var(--companion); font-size: 12px; }
+    .ow-active-tag { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .ow-travel-hint { color: var(--muted); font-size: 12px; }
   </style>
 </head>
 <body>
@@ -79,8 +97,9 @@
   <main>
     <div class="col">
       <div class="card">
-        <h3>Battle Grid</h3>
+        <h3 id="mainCardTitle">Battle Grid</h3>
         <div id="grid"></div>
+        <div id="overworld" style="display:none"></div>
         <div id="noBattle" class="empty" style="display:none">No active battle</div>
       </div>
       <div class="card">
@@ -119,8 +138,38 @@
     let battle = null;       // state.activeBattle
     let selectedId = null;   // selected player unit id
     let campaign = null;
+    let world = null;        // static world def (regions/locations/routes/crisis)
 
     function isPlayer(u) { return u.role !== 'enemy'; }
+
+    function locName(id) {
+      if (!world || !id) return id || '';
+      for (const region of world.regions || []) {
+        for (const loc of region.locations || []) {
+          if (loc.id === id) return loc.name;
+        }
+      }
+      return id;
+    }
+
+    // undirected neighbors of a location: [{ id, name, days }]
+    function neighborsOf(locId) {
+      const out = [];
+      if (!world) return out;
+      const seen = new Set();
+      for (const region of world.regions || []) {
+        for (const r of region.routes || []) {
+          let other = null;
+          if (r.from === locId) other = r.to;
+          else if (r.to === locId) other = r.from;
+          if (other && !seen.has(other)) {
+            seen.add(other);
+            out.push({ id: other, name: locName(other), days: r.days });
+          }
+        }
+      }
+      return out;
+    }
     function unitAt(col, row) { return battle ? Object.values(battle.units).find(u => u.position.col === col && u.position.row === row) : null; }
     function logLine(text, isErr) {
       const d = document.createElement('div');
@@ -167,6 +216,16 @@
         state = data.state; battle = state.activeBattle || null;
         if (data.narrative) logLine(data.narrative);
         if (Array.isArray(data.log)) data.log.forEach(line => logLine('  ⚔ ' + line));
+        if (data.encounter) logLine('Ambushed on the road!');
+        if (Array.isArray(data.deserted) && data.deserted.length) {
+          logLine('Hirelings deserted: ' + data.deserted.map(d => (d && d.name) ? d.name : d).join(', '), true);
+        }
+        if (data.contractResolved) {
+          const cr = data.contractResolved;
+          const outcome = typeof cr === 'string' ? cr : (cr.outcome || cr.result || (cr.win ? 'win' : 'loss'));
+          logLine('Contract: ' + outcome);
+        }
+        if (data.campaignWon) logLine('★ THE WARLORD FALLS — CAMPAIGN WON');
         if (data.finished) {
           const oc = data.outcome || data.battleOutcome;
           logLine('>> BATTLE OVER: ' + String(oc || '').toUpperCase());
@@ -184,12 +243,25 @@
 
     function render() {
       const grid = el('grid');
+      const ow = el('overworld');
       if (!battle) {
-        grid.style.display = 'none'; el('noBattle').style.display = 'block';
+        grid.style.display = 'none';
         el('turnInfo').textContent = '';
+        if (state && state.overworld) {
+          el('mainCardTitle').textContent = 'Overworld';
+          ow.style.display = 'flex';
+          el('noBattle').style.display = 'none';
+          renderOverworld();
+        } else {
+          el('mainCardTitle').textContent = 'Battle Grid';
+          ow.style.display = 'none';
+          el('noBattle').style.display = 'block';
+        }
         renderRoster();
         return;
       }
+      el('mainCardTitle').textContent = 'Battle Grid';
+      ow.style.display = 'none';
       grid.style.display = 'block'; el('noBattle').style.display = 'none';
       grid.style.width = COLS * TILE + 'px'; grid.style.height = ROWS * TILE + 'px';
       grid.innerHTML = '';
@@ -245,6 +317,101 @@
       renderRoster();
     }
 
+    function renderOverworld() {
+      const ow = el('overworld');
+      const o = state.overworld;
+      const meta = state.meta || {};
+      const cur = o.currentLocation;
+      const crisis = o.crisis || {};
+      const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+      let html = '';
+
+      // status line
+      html += '<div class="ow-status">' +
+        '<span class="here">' + esc(locName(cur)) + '</span>' +
+        '<span class="stat">Day ' + esc(meta.day) + '</span>' +
+        '<span class="stat">Gold ' + esc(meta.gold) + '</span>' +
+        '<span class="stat">Provisions ' + esc(o.provisions) + '</span>' +
+        '</div>';
+
+      // crisis box
+      html += '<div class="ow-box"><h4>Crisis</h4>' +
+        '<div>' + esc(crisis.name) + '</div>' +
+        '<div class="stat">Intel ' + esc(crisis.intel) + '/' + esc(crisis.intelNeeded) +
+        ' &nbsp;·&nbsp; Clock ' + esc(crisis.clockFilled) + '/' + esc(crisis.clockSegments) + '</div>';
+      if (crisis.resolved) {
+        html += '<div class="ow-win">★ CAMPAIGN WON</div>';
+      } else if (crisis.unlocked) {
+        html += '<div class="ow-flag">⚠ Final battle available</div>';
+      }
+      html += '</div>';
+
+      // travel
+      const neighbors = neighborsOf(cur);
+      html += '<div class="ow-box"><h4>Travel</h4>';
+      if (neighbors.length) {
+        html += '<div class="controls">' + neighbors.map(n =>
+          '<button data-travel="' + esc(n.id) + '">Travel to ' + esc(n.name) + ' (' + esc(n.days) + 'd)</button>'
+        ).join('') + '</div>';
+      } else {
+        html += '<div class="ow-travel-hint">No known routes from here.</div>';
+      }
+      html += '</div>';
+
+      // contracts board
+      const contracts = o.contracts || [];
+      html += '<div class="ow-box"><h4>Contracts</h4>';
+      if (!contracts.length) {
+        html += '<div class="ow-travel-hint">No contracts available.</div>';
+      } else {
+        html += contracts.map(c => {
+          const isActive = o.activeContractId === c.id;
+          let row = '<div class="ow-contract' + (isActive ? ' active' : '') + '">' +
+            '<span class="ttl">' + esc(c.title) + '</span>' +
+            '<span class="meta">→ ' + esc(locName(c.locationId)) + '</span>' +
+            '<span class="reward">' + esc(c.goldReward) + 'g +' + esc(c.intelReward) + ' intel</span>';
+          if (isActive) {
+            row += '<span class="ow-active-tag">active</span>';
+            if (cur === c.locationId) {
+              row += '<button data-start-contract="1">Start Contract</button>';
+            } else {
+              row += '<span class="ow-travel-hint">→ travel to ' + esc(locName(c.locationId)) + '</span>';
+            }
+          } else {
+            row += '<button data-take="' + esc(c.id) + '">Take</button>';
+          }
+          row += '</div>';
+          return row;
+        }).join('');
+      }
+      html += '</div>';
+
+      // actions: crisis start + pay wages
+      html += '<div class="controls">';
+      if (crisis.unlocked && !crisis.resolved && cur === crisis.finalLocationId) {
+        html += '<button class="ow-crisis-btn" data-start-crisis="1">Confront the Warlord</button>';
+      }
+      html += '<button data-pay-wages="1">Pay Wages</button>';
+      html += '</div>';
+
+      ow.innerHTML = html;
+
+      // wire buttons
+      ow.querySelectorAll('[data-travel]').forEach(b =>
+        b.onclick = () => command('travel', { to: b.getAttribute('data-travel') }));
+      ow.querySelectorAll('[data-take]').forEach(b =>
+        b.onclick = () => command('take-contract', { contractId: b.getAttribute('data-take') }));
+      ow.querySelectorAll('[data-start-contract]').forEach(b =>
+        b.onclick = () => command('start-contract'));
+      ow.querySelectorAll('[data-start-crisis]').forEach(b =>
+        b.onclick = () => command('start-crisis'));
+      ow.querySelectorAll('[data-pay-wages]').forEach(b =>
+        b.onclick = () => command('pay-wages'));
+    }
+
     function renderRoster() {
       const r = el('roster');
       if (!battle) {
@@ -284,6 +451,8 @@
     el('startBtn').onclick = () => command('start', { enemies: el('enemySpec').value });
 
     (async () => {
+      try { world = await api('/api/warband/world'); }
+      catch (e) { setStatus('world load failed: ' + e.message, true); }
       await loadCampaigns();
       await refresh();
       setInterval(refresh, 3000); // keep state fresh if the CLI mutates it too
