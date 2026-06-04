@@ -12,7 +12,7 @@
   },
   "rng": {
     "seed": "hollow-road-001",
-    "cursor": 80
+    "cursor": 81
   },
   "houseRules": {
     "noInventedNumbers": true,
@@ -259,7 +259,7 @@
     "thornhalt-transit": {
       "label": "Convoy moves north",
       "segments": 6,
-      "filled": 1,
+      "filled": 2,
       "trigger": "convoy lost"
     }
   },
@@ -267,20 +267,15 @@
     "active": false
   },
   "chronicle": {
-    "buffer": [
-      {
-        "t": "2026-06-02T02:05:02.016Z",
-        "text": "Session 2: Recruited Sera as conditional ally (public record only). Holt gave full testimony at Spit and Timber — 16 convoy workers taken alive, silver-eyed, north on mill road, Threshold wagon brand, cloaked figure with dark-red ring. Aldric was deliberately left behind. Investigation phase complete — moving to action."
-      },
-      {
-        "t": "2026-06-02T04:20:52.009Z",
-        "text": "Session 2 close: Assaulted Ashfeld relay station with Sera — 4 guards down, 15 convoy survivors freed, contractor Renn captured. Convoy was dominated not killed; traveled north on mill road. Fifth guard rode ahead to Crale — intercepted via Wendel contact rider. Aldric rode ahead, broke up Threshold extraction at Mira Voss house, subdued two agents, recovered Caspar Voss ledger intact. Mira unharmed. All three threads now active: Renn in custody, ledger secured, survivors en route to Crale."
-      }
-    ],
+    "buffer": [],
     "log": [
       {
         "t": "2026-05-30T03:14:07.458Z",
         "summary": "Session 1 complete: convoy mystery established, threshold identified as directed operation, three leads open (Sera, Corvin, the clearing)"
+      },
+      {
+        "t": "2026-06-04T17:17:43.646Z",
+        "summary": "Session 3 (acceptance play-test): Aldric went straight at Holt on the Crale docks pre-dawn, no subtlety — Intimidation failed by one (14 vs DC15). Holt held; his terror of the threshold outweighs Aldric. A hooded watcher observed and slipped into the fog. Convoy clock 1->2."
       }
     ]
   }
