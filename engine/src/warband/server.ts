@@ -196,6 +196,18 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `Port ${PORT} is already in use. Another warband-serve is probably running.\n` +
+        `Open http://localhost:${PORT} (it may already be up), or start on another port:\n` +
+        `  WARBAND_PORT=4600 npm run warband-serve   (PowerShell: $env:WARBAND_PORT=4600; npm run warband-serve)`
+    );
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(PORT, () => {
   console.log(
     JSON.stringify({ op: 'warband.serve', url: `http://localhost:${PORT}`, campaigns: listCampaigns() }, null, 2)
