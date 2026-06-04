@@ -19,11 +19,11 @@ import {
   startBattle,
   moveUnit,
   resolveAttack,
-  endTurn,
   getBattleOutcome,
   endBattle,
   type EnemySpawn,
 } from './combat.js';
+import { currentActorId, advanceTurn, runEnemyTurns, concludeBattle } from './turn.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(HERE, '..', '..', 'web');
@@ -32,6 +32,24 @@ const PORT = Number(process.env.WARBAND_PORT) || 4500;
 
 function loadData<T>(file: string): T {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8')) as T;
+}
+
+// After any action, if the battle is decided, resolve casualties and close it.
+// Returns the post-state plus any casualty/outcome info to surface to the client.
+function maybeConclude(
+  state: import('./schema.js').TWarbandCampaignState,
+  roller: import('../core/rng.js').Roller,
+): { state: import('./schema.js').TWarbandCampaignState; finished: boolean; outcome?: string; casualties?: unknown[] } {
+  if (!state.activeBattle) return { state, finished: false };
+  const outcome = getBattleOutcome(state);
+  if (outcome === 'ongoing') return { state, finished: false };
+  const ctx = {
+    battleId: state.activeBattle.battleId,
+    dayOfCampaign: state.meta.day,
+    location: 'the field',
+  };
+  const r = concludeBattle(state, roller, ctx);
+  return { state: r.state, finished: true, outcome, casualties: r.casualties };
 }
 
 function listCampaigns(): string[] {
@@ -72,35 +90,63 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
       });
       const roller = makeRoller(state.rng);
       state = startBattle(state, spawns, roller);
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const enemyRun = runEnemyTurns(state, roller, injuries);
+      state = enemyRun.state;
+      const conc = maybeConclude(state, roller);
+      state = conc.state;
       narrative = 'Battle begins.';
+      extra = { log: enemyRun.log, currentTurn: state.activeBattle ? currentActorId(state) : null, ...(conc.finished ? { finished: true, outcome: conc.outcome, casualties: conc.casualties } : {}) };
       break;
     }
     case 'move': {
-      state = moveUnit(state, String(args.unitId), Number(args.col), Number(args.row));
-      narrative = `${args.unitId} moves to (${args.col},${args.row}).`;
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const unitId = String(args.unitId);
+      const actor = currentActorId(state);
+      if (unitId !== actor) throw new EngineError(`it is ${actor}'s turn, not ${unitId}'s`);
+      const u = state.activeBattle.units[unitId];
+      if (!u || u.role === 'enemy') throw new EngineError('you can only move your own units');
+      if (u.hasMoved) throw new EngineError(`${unitId} has already moved this turn`);
+      state = moveUnit(state, unitId, Number(args.col), Number(args.row));
+      narrative = `${unitId} moves to (${args.col},${args.row}).`;
+      extra = { currentTurn: currentActorId(state) };
       break;
     }
     case 'attack': {
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const attackerId = String(args.attackerId);
+      const actor = currentActorId(state);
+      if (attackerId !== actor) throw new EngineError(`it is ${actor}'s turn, not ${attackerId}'s`);
+      const a = state.activeBattle.units[attackerId];
+      if (!a || a.role === 'enemy') throw new EngineError('you can only attack with your own units');
+      if (a.hasActed) throw new EngineError(`${attackerId} has already acted this turn`);
       const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
       const roller = makeRoller(state.rng);
-      const r = resolveAttack(state, String(args.attackerId), String(args.targetId), roller, injuries);
+      const r = resolveAttack(state, attackerId, String(args.targetId), roller, injuries);
       state = r.state;
       narrative = r.narrative;
+      const conc = maybeConclude(state, roller);
+      state = conc.state;
       extra = {
-        outcome: r.outcome,
-        roll: r.roll,
-        damage: r.damage,
-        injury: r.injuryTriggered,
-        moraleEvents: r.moraleEvents,
-        battleOutcome: getBattleOutcome(state),
+        outcome: r.outcome, roll: r.roll, damage: r.damage, injury: r.injuryTriggered, moraleEvents: r.moraleEvents,
+        ...(conc.finished ? { finished: true, battleOutcome: conc.outcome, casualties: conc.casualties } : { battleOutcome: 'ongoing', currentTurn: currentActorId(state) }),
       };
       break;
     }
     case 'end-turn': {
-      state = endTurn(state);
-      const nextId = state.activeBattle!.turnOrder[state.activeBattle!.currentTurnIndex];
-      narrative = `Turn passes to ${nextId}.`;
-      extra = { nextTurn: nextId };
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      state = advanceTurn(state);
+      const enemyRun = runEnemyTurns(state, roller, injuries);
+      state = enemyRun.state;
+      const conc = maybeConclude(state, roller);
+      state = conc.state;
+      narrative = state.activeBattle ? `Turn passes to ${currentActorId(state)}.` : 'The battle is over.';
+      extra = {
+        log: enemyRun.log,
+        ...(conc.finished ? { finished: true, outcome: conc.outcome, casualties: conc.casualties } : { currentTurn: state.activeBattle ? currentActorId(state) : null }),
+      };
       break;
     }
     case 'flee': {

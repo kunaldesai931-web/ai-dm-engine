@@ -141,14 +141,15 @@ export function getBattleOutcome(
     return 'player_loss';
   }
 
-  const allPlayerOut = playerUnits.every(
-    (u) => u.status === 'dead' || u.status === 'routing',
-  );
+  // A 'down' unit is out of the fight (consistent with ai.ts isTargetable):
+  // it cannot act or be targeted, so it no longer counts toward its side.
+  const isOut = (u: (typeof allUnits)[number]) =>
+    u.status === 'dead' || u.status === 'routing' || u.status === 'down';
+
+  const allPlayerOut = playerUnits.every(isOut);
   if (allPlayerOut) return 'player_loss';
 
-  const allEnemyOut = enemyUnits.every(
-    (u) => u.status === 'dead' || u.status === 'routing',
-  );
+  const allEnemyOut = enemyUnits.every(isOut);
   if (allEnemyOut) return 'player_win';
 
   return 'ongoing';
