@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startBattle, getBattleOutcome, endBattle, moveUnit, endTurn } from './combat.js';
+import { startBattle, getBattleOutcome, endBattle, moveUnit, endTurn, resolveAttack, type AttackResult } from './combat.js';
 import { makeRoller } from '../core/rng.js';
 import { EngineError } from '../core/errors.js';
 import type { TWarbandCampaignState, TRosterMember } from './schema.js';
@@ -179,4 +179,65 @@ test('endTurn resets hasActed and hasMoved for the incoming unit', () => {
   const nextId = next.activeBattle!.turnOrder[next.activeBattle!.currentTurnIndex];
   assert.equal(next.activeBattle!.units[nextId].hasMoved, false);
   assert.equal(next.activeBattle!.units[nextId].hasActed, false);
+});
+
+import type { InjuryEntry } from './progression.js';
+
+const INJURIES: Record<'blunt' | 'cutting' | 'piercing', InjuryEntry[]> = {
+  blunt: [{ id: 'cracked-rib', name: 'Cracked Rib', stat: 'initiative', amount: -1 }],
+  cutting: [{ id: 'sword-arm-cut', name: 'Sword Arm Cut', stat: 'melee', amount: -1 }],
+  piercing: [{ id: 'gut-wound', name: 'Gut Wound', stat: 'resolve', amount: -1 }],
+};
+
+test('resolveAttack returns a valid outcome', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const roller2 = makeRoller(battle.rng);
+  const result = resolveAttack(battle, 'protagonist', 'bandit-1', roller2, INJURIES);
+  assert.ok(['hit', 'miss', 'crit', 'stumble'].includes(result.outcome));
+});
+
+test('resolveAttack does not mutate input state', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const hpBefore = battle.activeBattle!.units['bandit-1'].currentHp;
+  const roller2 = makeRoller(battle.rng);
+  resolveAttack(battle, 'protagonist', 'bandit-1', roller2, INJURIES);
+  assert.equal(battle.activeBattle!.units['bandit-1'].currentHp, hpBefore);
+});
+
+test('resolveAttack marks attacker as hasActed', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const roller2 = makeRoller(battle.rng);
+  const result = resolveAttack(battle, 'protagonist', 'bandit-1', roller2, INJURIES);
+  assert.equal(result.state.activeBattle!.units['protagonist'].hasActed, true);
+});
+
+test('resolveAttack returns state with battle still active', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const roller2 = makeRoller(battle.rng);
+  const result = resolveAttack(battle, 'protagonist', 'bandit-1', roller2, INJURIES);
+  assert.ok(result.state.activeBattle);
+});
+
+test('resolveAttack throws on non-existent attacker', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const roller2 = makeRoller(battle.rng);
+  assert.throws(() => resolveAttack(battle, 'ghost', 'bandit-1', roller2, INJURIES), EngineError);
+});
+
+test('resolveAttack throws on non-existent target', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  const roller2 = makeRoller(battle.rng);
+  assert.throws(() => resolveAttack(battle, 'protagonist', 'ghost', roller2, INJURIES), EngineError);
 });

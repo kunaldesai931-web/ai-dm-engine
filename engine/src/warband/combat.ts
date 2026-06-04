@@ -1,6 +1,7 @@
 import { EngineError } from '../core/errors.js';
 import type { Roller } from '../core/rng.js';
 import type { TCombatUnit, TRosterMember, TWarbandCampaignState } from './schema.js';
+import type { InjuryEntry } from './progression.js';
 
 export interface EnemySpawn {
   id: string;
@@ -234,5 +235,130 @@ export function endTurn(state: TWarbandCampaignState): TWarbandCampaignState {
         [nextUnitId]: { ...units[nextUnitId], hasActed: false, hasMoved: false },
       },
     },
+  };
+}
+
+export interface AttackResult {
+  outcome: 'hit' | 'crit' | 'miss' | 'stumble';
+  roll: number;
+  damage: number;
+  injuryTriggered: InjuryEntry | null;
+  moraleEvents: Array<{ unitId: string; moraleHit: number }>;
+  narrative: string;
+}
+
+type InjuryTables = Record<'blunt' | 'cutting' | 'piercing', InjuryEntry[]>;
+
+function chebyshevDistance(a: { col: number; row: number }, b: { col: number; row: number }): number {
+  return Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
+}
+
+function pickRandom<T>(arr: T[], roller: Roller): T {
+  if (arr.length === 0) throw new EngineError('pickRandom: empty array');
+  return arr[roller.die(arr.length) - 1];
+}
+
+export function resolveAttack(
+  state: TWarbandCampaignState,
+  attackerId: string,
+  targetId: string,
+  roller: Roller,
+  injuryTables: InjuryTables,
+): AttackResult & { state: TWarbandCampaignState } {
+  if (!state.activeBattle) throw new EngineError('no active battle');
+
+  const attacker = state.activeBattle.units[attackerId];
+  const target = state.activeBattle.units[targetId];
+  if (!attacker) throw new EngineError(`attacker "${attackerId}" not found`);
+  if (!target) throw new EngineError(`target "${targetId}" not found`);
+  if (attacker.status !== 'active') throw new EngineError(`attacker "${attackerId}" cannot act (status: ${attacker.status})`);
+  if (target.status === 'dead' || target.status === 'routing') {
+    throw new EngineError(`target "${targetId}" is already ${target.status}`);
+  }
+
+  const dist = chebyshevDistance(attacker.position, target.position);
+  const attackStat = dist <= 1 ? attacker.stats.melee : attacker.stats.ranged;
+
+  const d20 = roller.die(20);
+  const attackRoll = d20 + attackStat;
+  const isCrit = d20 === 20;
+  const isHit = isCrit || attackRoll >= target.stats.defense;
+  const isMissByFive = !isHit && (target.stats.defense - attackRoll) >= 5;
+
+  const weaponCategory: 'blunt' | 'cutting' | 'piercing' = 'cutting';
+
+  let damage = 0;
+  let injuryTriggered: InjuryEntry | null = null;
+  let newUnits = { ...state.activeBattle.units };
+  const moraleEvents: Array<{ unitId: string; moraleHit: number }> = [];
+  let narrative = '';
+  let outcome: AttackResult['outcome'];
+
+  if (!isHit && isMissByFive) {
+    outcome = 'stumble';
+    narrative = `${attacker.name} stumbles and loses their next action.`;
+    newUnits = { ...newUnits, [attackerId]: { ...attacker, hasActed: true, status: 'stunned' as const } };
+  } else if (!isHit) {
+    outcome = 'miss';
+    narrative = `${attacker.name} misses ${target.name} (rolled ${attackRoll} vs defense ${target.stats.defense}).`;
+    newUnits = { ...newUnits, [attackerId]: { ...attacker, hasActed: true } };
+  } else {
+    outcome = isCrit ? 'crit' : 'hit';
+    const damageRoll = isCrit ? 6 : roller.die(6);
+    damage = Math.max(1, damageRoll + Math.floor(attackStat / 2));
+
+    let newHp = Math.max(0, target.currentHp - damage);
+    let newStatus = target.status;
+
+    const injuryThreshold = Math.floor(target.stats.maxHp / 2);
+    if (damage >= injuryThreshold || newHp === 0 || isCrit) {
+      const table = injuryTables[weaponCategory];
+      if (table && table.length > 0) {
+        injuryTriggered = pickRandom(table, roller);
+      }
+    }
+
+    if (newHp === 0) newStatus = 'down';
+
+    newUnits = {
+      ...newUnits,
+      [attackerId]: { ...attacker, hasActed: true },
+      [targetId]: { ...target, currentHp: newHp, status: newStatus },
+    };
+
+    if (newStatus === 'down' || newStatus === 'dead') {
+      const targetFactionIsPlayer = isPlayerUnit(target);
+      for (const [uid, u] of Object.entries(newUnits)) {
+        if (uid === targetId) continue;
+        if (isPlayerUnit(u) !== targetFactionIsPlayer) continue;
+        if (u.status === 'dead' || u.status === 'routing') continue;
+        if (chebyshevDistance(u.position, target.position) > 3) continue;
+
+        const moraleRoll = roller.die(6);
+        const moraleHit = Math.max(0, moraleRoll - Math.floor(u.stats.resolve / 2));
+        if (moraleHit > 0) {
+          const newMorale = Math.max(0, u.morale - moraleHit);
+          const newUnitStatus = newMorale === 0 ? 'routing' as const : u.status;
+          newUnits = { ...newUnits, [uid]: { ...u, morale: newMorale, status: newUnitStatus } };
+          moraleEvents.push({ unitId: uid, moraleHit });
+        }
+      }
+    }
+
+    narrative = isCrit
+      ? `${attacker.name} lands a critical hit on ${target.name} for ${damage} damage!`
+      : `${attacker.name} hits ${target.name} for ${damage} damage.`;
+    if (injuryTriggered) narrative += ` ${target.name} suffers ${injuryTriggered.name}!`;
+    if (newStatus === 'down') narrative += ` ${target.name} goes down!`;
+  }
+
+  return {
+    outcome,
+    roll: attackRoll,
+    damage,
+    injuryTriggered,
+    moraleEvents,
+    narrative,
+    state: { ...state, activeBattle: { ...state.activeBattle, units: newUnits } },
   };
 }
