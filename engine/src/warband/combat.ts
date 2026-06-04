@@ -1,7 +1,7 @@
 import { EngineError } from '../core/errors.js';
 import type { Roller } from '../core/rng.js';
 import type { TCombatUnit, TRosterMember, TWarbandCampaignState } from './schema.js';
-import type { InjuryEntry } from './progression.js';
+import { applyInjury, type InjuryEntry } from './progression.js';
 
 // Max Chebyshev distance a unit may move in a single move action. Tunable.
 export const MOVE_RANGE = 3;
@@ -70,6 +70,7 @@ export function startBattle(
       status: 'active',
       hasActed: false,
       hasMoved: false,
+      injuries: [],
     };
   }
 
@@ -89,6 +90,7 @@ export function startBattle(
       status: 'active',
       hasActed: false,
       hasMoved: false,
+      injuries: [],
     };
   }
 
@@ -166,7 +168,11 @@ export function endBattle(state: TWarbandCampaignState): TWarbandCampaignState {
   const updateMember = (member: TRosterMember): TRosterMember => {
     const unit = battle.units[member.id];
     if (!unit) return member;
-    return { ...member, stats: { ...member.stats, hp: unit.currentHp } };
+    let updated: TRosterMember = { ...member, stats: { ...member.stats, hp: unit.currentHp } };
+    for (const inj of unit.injuries ?? []) {
+      updated = applyInjury(updated, inj as InjuryEntry);
+    }
+    return updated;
   };
 
   const updatedCompanions: Record<string, TRosterMember> = {};
@@ -346,7 +352,7 @@ export function resolveAttack(
     newUnits = {
       ...newUnits,
       [attackerId]: { ...attacker, hasActed: true },
-      [targetId]: { ...target, currentHp: newHp, status: newStatus },
+      [targetId]: { ...target, currentHp: newHp, status: newStatus, injuries: injuryTriggered ? [...target.injuries, injuryTriggered] : target.injuries },
     };
 
     if (newStatus === 'down' || newStatus === 'dead') {

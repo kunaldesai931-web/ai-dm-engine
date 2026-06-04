@@ -272,3 +272,33 @@ test('playerMoveUnit rejects a move beyond range', () => {
     assert.throws(() => playerMoveUnit(battle, 'protagonist', start.col, farRow), EngineError);
   }
 });
+
+import { applyInjury } from './progression.js';
+
+test('resolveAttack records a triggered injury on the target unit', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  const battle = startBattle(state, ENEMIES, roller);
+  // Rig: protagonist huge melee (always hits), bandit at 1 hp so the hit drops it to 0 (injury triggers on hp 0)
+  battle.activeBattle!.units['protagonist'].stats.melee = 30;
+  battle.activeBattle!.units['bandit-1'].currentHp = 1;
+  // place adjacent so it's a melee strike
+  const bp = battle.activeBattle!.units['bandit-1'].position;
+  battle.activeBattle!.units['protagonist'].position = { col: Math.max(bp.col - 1, 0), row: bp.row };
+  const r = resolveAttack(battle, 'protagonist', 'bandit-1', makeRoller(battle.rng), INJURIES);
+  const target = r.state.activeBattle!.units['bandit-1'];
+  assert.equal(target.injuries.length, 1, 'injury should be recorded on the downed target');
+});
+
+test('endBattle applies accumulated combat injuries to the roster member', () => {
+  const state = baseState();
+  const roller = makeRoller(state.rng);
+  let battle = startBattle(state, ENEMIES, roller);
+  // Manually give the protagonist combat unit an injury, then end the battle
+  const injury = { id: 'sword-arm-cut', name: 'Sword Arm Cut', stat: 'melee' as const, amount: -1 };
+  battle.activeBattle!.units['protagonist'].injuries = [injury];
+  const meleeBefore = state.protagonist.stats.melee;
+  const ended = endBattle(battle);
+  assert.equal(ended.protagonist.injuries.length, 1, 'injury persisted to roster');
+  assert.equal(ended.protagonist.stats.melee, meleeBefore - 1, 'stat penalty applied');
+});

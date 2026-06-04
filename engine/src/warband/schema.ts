@@ -65,6 +65,7 @@ export const CombatUnit = z.object({
   status: z.enum(['active', 'stunned', 'routing', 'down', 'dead']),
   hasActed: z.boolean(),
   hasMoved: z.boolean(),
+  injuries: z.array(Injury).default([]),
 }).superRefine((u, ctx) => {
   if (u.currentHp > u.stats.maxHp) {
     ctx.addIssue({ code: 'custom', message: `${u.memberId}: currentHp ${u.currentHp} exceeds stats.maxHp ${u.stats.maxHp}` });
