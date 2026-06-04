@@ -24,6 +24,7 @@ import {
   type EnemySpawn,
 } from './combat.js';
 import { currentActorId, advanceTurn, runEnemyTurns, concludeBattle } from './turn.js';
+import * as overworld from './overworld.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.resolve(HERE, '..', '..', 'web');
@@ -32,6 +33,30 @@ const PORT = Number(process.env.WARBAND_PORT) || 4500;
 
 function loadData<T>(file: string): T {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8')) as T;
+}
+
+const WORLD = loadData<overworld.WorldData>('world.json');
+
+// Parse an "id:typeId,..." enemy spec into EnemySpawn[]. Loads enemies.json.
+function spawnsFromSpec(spec: string): EnemySpawn[] {
+  if (!spec) throw new EngineError('enemies spec required, e.g. "b1:bandit,b2:archer"');
+  const defs = loadData<Array<Record<string, any>>>('enemies.json');
+  return spec.split(',').map((tok) => {
+    const parts = tok.trim().split(':');
+    if (parts.length !== 2) throw new EngineError(`bad enemy token "${tok.trim()}" — expected id:typeId`);
+    const [id, typeId] = parts;
+    const def = defs.find((d) => d.id === typeId);
+    if (!def) throw new EngineError(`unknown enemy type "${typeId}". Available: ${defs.map((d) => d.id).join(', ')}`);
+    return {
+      id,
+      typeId,
+      name: def.name,
+      stats: def.stats,
+      morale: def.morale,
+      weaponCategory: def.weaponCategory,
+      named: def.named ?? false,
+    };
+  });
 }
 
 // After any action, if the battle is decided, resolve casualties and close it.
@@ -52,6 +77,48 @@ function maybeConclude(
   return { state: r.state, finished: true, outcome, casualties: r.casualties };
 }
 
+// Conclude a battle and, if it carried an overworld context tag, credit the
+// reward. The context must be read BEFORE concludeBattle (which drops
+// activeBattle). Used by contract/crisis/encounter battles and by the normal
+// attack/end-turn paths so a contract battle finished by an ordinary attack
+// still pays out.
+function concludeWithRewards(
+  state: import('./schema.js').TWarbandCampaignState,
+  roller: import('../core/rng.js').Roller,
+): {
+  state: import('./schema.js').TWarbandCampaignState;
+  finished: boolean;
+  outcome?: string;
+  casualties?: unknown[];
+  contractResolved?: 'win' | 'loss';
+  campaignWon?: boolean;
+} {
+  const ctx = state.activeBattle?.context; // capture BEFORE conclude
+  const conc = maybeConclude(state, roller);
+  let next = conc.state;
+  let reward: { contractResolved?: 'win' | 'loss'; campaignWon?: boolean } = {};
+  if (conc.finished && ctx) {
+    if (ctx.kind === 'contract') {
+      if (conc.outcome === 'player_win') {
+        next = overworld.resolveContractWin(next);
+        reward = { contractResolved: 'win' };
+      } else {
+        next = overworld.resolveContractLoss(next);
+        reward = { contractResolved: 'loss' };
+      }
+    } else if (ctx.kind === 'crisis' && conc.outcome === 'player_win') {
+      next = {
+        ...next,
+        overworld: next.overworld
+          ? { ...next.overworld, crisis: { ...next.overworld.crisis, resolved: true } }
+          : next.overworld,
+      };
+      reward = { campaignWon: true };
+    }
+  }
+  return { state: next, finished: conc.finished, outcome: conc.outcome, casualties: conc.casualties, ...reward };
+}
+
 function listCampaigns(): string[] {
   if (!fs.existsSync(WARBAND_DIR)) return [];
   return fs
@@ -70,24 +137,7 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
   switch (command) {
     case 'start': {
       const spec = String(args.enemies ?? '');
-      if (!spec) throw new EngineError('enemies spec required, e.g. "b1:bandit,b2:archer"');
-      const defs = loadData<Array<Record<string, any>>>('enemies.json');
-      const spawns: EnemySpawn[] = spec.split(',').map((tok) => {
-        const parts = tok.trim().split(':');
-        if (parts.length !== 2) throw new EngineError(`bad enemy token "${tok.trim()}" — expected id:typeId`);
-        const [id, typeId] = parts;
-        const def = defs.find((d) => d.id === typeId);
-        if (!def) throw new EngineError(`unknown enemy type "${typeId}". Available: ${defs.map((d) => d.id).join(', ')}`);
-        return {
-          id,
-          typeId,
-          name: def.name,
-          stats: def.stats,
-          morale: def.morale,
-          weaponCategory: def.weaponCategory,
-          named: def.named ?? false,
-        };
-      });
+      const spawns = spawnsFromSpec(spec);
       const roller = makeRoller(state.rng);
       state = startBattle(state, spawns, roller);
       const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
@@ -125,11 +175,19 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
       const r = resolveAttack(state, attackerId, String(args.targetId), roller, injuries);
       state = r.state;
       narrative = r.narrative;
-      const conc = maybeConclude(state, roller);
+      const conc = concludeWithRewards(state, roller);
       state = conc.state;
       extra = {
         outcome: r.outcome, roll: r.roll, damage: r.damage, injury: r.injuryTriggered, moraleEvents: r.moraleEvents,
-        ...(conc.finished ? { finished: true, battleOutcome: conc.outcome, casualties: conc.casualties } : { battleOutcome: 'ongoing', currentTurn: currentActorId(state) }),
+        ...(conc.finished
+          ? {
+              finished: true,
+              battleOutcome: conc.outcome,
+              casualties: conc.casualties,
+              ...(conc.contractResolved ? { contractResolved: conc.contractResolved } : {}),
+              ...(conc.campaignWon ? { campaignWon: true } : {}),
+            }
+          : { battleOutcome: 'ongoing', currentTurn: currentActorId(state) }),
       };
       break;
     }
@@ -140,12 +198,20 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
       state = advanceTurn(state);
       const enemyRun = runEnemyTurns(state, roller, injuries);
       state = enemyRun.state;
-      const conc = maybeConclude(state, roller);
+      const conc = concludeWithRewards(state, roller);
       state = conc.state;
       narrative = state.activeBattle ? `Turn passes to ${currentActorId(state)}.` : 'The battle is over.';
       extra = {
         log: enemyRun.log,
-        ...(conc.finished ? { finished: true, outcome: conc.outcome, casualties: conc.casualties } : { currentTurn: state.activeBattle ? currentActorId(state) : null }),
+        ...(conc.finished
+          ? {
+              finished: true,
+              outcome: conc.outcome,
+              casualties: conc.casualties,
+              ...(conc.contractResolved ? { contractResolved: conc.contractResolved } : {}),
+              ...(conc.campaignWon ? { campaignWon: true } : {}),
+            }
+          : { currentTurn: state.activeBattle ? currentActorId(state) : null }),
       };
       break;
     }
@@ -160,6 +226,124 @@ function runCommand(campaignName: string, command: string, args: Record<string, 
       state = endBattle(state);
       narrative = outcome === 'player_win' ? 'Victory!' : 'Defeat.';
       extra = { outcome };
+      break;
+    }
+    case 'ow-status': {
+      narrative = 'Overworld status.';
+      extra = {
+        op: 'ow-status',
+        overworld: state.overworld,
+        neighbors: state.overworld ? overworld.neighbors(WORLD, state.overworld.currentLocation) : [],
+      };
+      break;
+    }
+    case 'travel': {
+      const roller = makeRoller(state.rng);
+      const r = overworld.travel(state, WORLD, String(args.to), roller);
+      state = r.state;
+      const wages = overworld.payWages(state);
+      state = wages.state;
+      narrative = `Traveled to ${state.overworld!.currentLocation}.`;
+      let battleExtra: Record<string, unknown> = {};
+      if (r.encounter) {
+        const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+        const spawns = spawnsFromSpec('e1:bandit,e2:bandit');
+        state = startBattle(state, spawns, roller);
+        state = { ...state, activeBattle: { ...state.activeBattle!, context: { kind: 'encounter' } } };
+        const er = runEnemyTurns(state, roller, injuries);
+        state = er.state;
+        const conc = concludeWithRewards(state, roller);
+        state = conc.state;
+        narrative = `Ambushed en route to ${r.state.overworld!.currentLocation}!`;
+        battleExtra = {
+          log: er.log,
+          currentTurn: state.activeBattle ? currentActorId(state) : null,
+          ...(conc.finished ? { finished: true, outcome: conc.outcome, casualties: conc.casualties } : {}),
+        };
+      }
+      extra = {
+        op: 'travel',
+        overworld: state.overworld,
+        encounter: r.encounter,
+        wagesPaid: wages.paid,
+        deserted: wages.deserted,
+        ...battleExtra,
+      };
+      break;
+    }
+    case 'take-contract': {
+      state = overworld.takeContract(state, String(args.contractId));
+      narrative = `Took contract ${args.contractId}.`;
+      extra = { op: 'take-contract', overworld: state.overworld };
+      break;
+    }
+    case 'start-contract': {
+      const ow = state.overworld;
+      if (!ow?.activeContractId) throw new EngineError('no active contract');
+      const contract = ow.contracts.find((c) => c.id === ow.activeContractId);
+      if (!contract) throw new EngineError(`active contract ${ow.activeContractId} not found`);
+      if (ow.currentLocation !== contract.locationId) {
+        throw new EngineError(`travel to ${contract.locationId} first`);
+      }
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      state = startBattle(state, spawnsFromSpec(contract.enemySpec), roller);
+      state = { ...state, activeBattle: { ...state.activeBattle!, context: { kind: 'contract', contractId: contract.id } } };
+      const er = runEnemyTurns(state, roller, injuries);
+      state = er.state;
+      const conc = concludeWithRewards(state, roller);
+      state = conc.state;
+      narrative = `Contract battle begins: ${contract.title}.`;
+      extra = {
+        op: 'start-contract',
+        log: er.log,
+        currentTurn: state.activeBattle ? currentActorId(state) : null,
+        ...(conc.finished
+          ? {
+              finished: true,
+              outcome: conc.outcome,
+              casualties: conc.casualties,
+              ...(conc.contractResolved ? { contractResolved: conc.contractResolved } : {}),
+            }
+          : {}),
+      };
+      break;
+    }
+    case 'start-crisis': {
+      const ow = state.overworld;
+      if (!ow?.crisis.unlocked || ow.crisis.resolved) throw new EngineError('crisis not available');
+      if (ow.currentLocation !== ow.crisis.finalLocationId) {
+        throw new EngineError(`travel to ${ow.crisis.finalLocationId} first`);
+      }
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      state = startBattle(state, spawnsFromSpec(WORLD.crisis.finalEnemySpec), roller);
+      state = { ...state, activeBattle: { ...state.activeBattle!, context: { kind: 'crisis' } } };
+      const er = runEnemyTurns(state, roller, injuries);
+      state = er.state;
+      const conc = concludeWithRewards(state, roller);
+      state = conc.state;
+      narrative = `The final confrontation begins: ${ow.crisis.name}.`;
+      extra = {
+        op: 'start-crisis',
+        log: er.log,
+        currentTurn: state.activeBattle ? currentActorId(state) : null,
+        ...(conc.finished
+          ? {
+              finished: true,
+              outcome: conc.outcome,
+              casualties: conc.casualties,
+              ...(conc.campaignWon ? { campaignWon: true } : {}),
+            }
+          : {}),
+      };
+      break;
+    }
+    case 'pay-wages': {
+      const r = overworld.payWages(state);
+      state = r.state;
+      narrative = r.paid ? 'Wages paid.' : 'Wages not due yet.';
+      extra = { op: 'pay-wages', paid: r.paid, deserted: r.deserted, gold: state.meta.gold };
       break;
     }
     default:
@@ -212,6 +396,10 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/api/warband/campaigns') {
       return sendJson(res, 200, { campaigns: listCampaigns() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/warband/world') {
+      return sendJson(res, 200, WORLD);
     }
 
     if (req.method === 'GET' && url.pathname === '/api/warband/state') {
