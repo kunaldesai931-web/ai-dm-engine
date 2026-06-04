@@ -21,11 +21,11 @@ import {
   startBattle,
   moveUnit,
   resolveAttack,
-  endTurn,
   getBattleOutcome,
   endBattle,
   type EnemySpawn,
 } from './combat.js';
+import { currentActorId, advanceTurn, runEnemyTurns, concludeBattle } from './turn.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(HERE, '..', '..', '..', 'engine', 'data');
@@ -277,6 +277,9 @@ function main() {
       });
       const roller = makeRoller(state.rng);
       state = startBattle(state, spawns, roller);
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const enemyRun = runEnemyTurns(state, roller, injuries);
+      state = enemyRun.state;
       mutated = true;
       result = {
         op: 'combat.start',
@@ -285,6 +288,8 @@ function main() {
         units: Object.values(state.activeBattle!.units).map((u) => ({
           id: u.memberId, name: u.name, role: u.role, hp: u.currentHp, maxHp: u.stats.maxHp, position: u.position, status: u.status,
         })),
+        log: enemyRun.log,
+        currentTurn: state.activeBattle ? currentActorId(state) : null,
       };
       break;
     }
@@ -313,6 +318,9 @@ function main() {
       const col = parseInt(positional[3] ?? '', 10);
       const row = parseInt(positional[4] ?? '', 10);
       if (!unitId || isNaN(col) || isNaN(row)) throw new EngineError('usage: warband combat move <unitId> <col> <row>');
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const actor = currentActorId(state);
+      if (unitId !== actor) throw new EngineError(`it is ${actor}'s turn, not ${unitId}'s`);
       state = moveUnit(state, unitId, col, row);
       mutated = true;
       result = { op: 'combat.move', unitId, position: { col, row } };
@@ -323,6 +331,9 @@ function main() {
       const attackerId = positional[2];
       const targetId = positional[3];
       if (!attackerId || !targetId) throw new EngineError('usage: warband combat attack <attackerId> <targetId>');
+      if (!state.activeBattle) throw new EngineError('no active battle');
+      const actor = currentActorId(state);
+      if (attackerId !== actor) throw new EngineError(`it is ${actor}'s turn, not ${attackerId}'s`);
       const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
       const roller = makeRoller(state.rng);
       const attackResult = resolveAttack(state, attackerId, targetId, roller, injuries);
@@ -340,16 +351,30 @@ function main() {
         targetStatus: state.activeBattle?.units[targetId]?.status ?? null,
         battleOutcome: getBattleOutcome(state),
       };
+      if (state.activeBattle && getBattleOutcome(state) !== 'ongoing') {
+        const oc = getBattleOutcome(state);
+        const c = concludeBattle(state, makeRoller(state.rng), { battleId: state.activeBattle.battleId, dayOfCampaign: state.meta.day, location: 'the field' });
+        state = c.state;
+        result = { ...result, finished: true, battleOutcome: oc, casualties: c.casualties };
+      }
       break;
     }
 
     case 'combat end-turn': {
       if (!state.activeBattle) throw new EngineError('no active battle');
-      state = endTurn(state);
+      const injuries = loadData<Record<'blunt' | 'cutting' | 'piercing', any[]>>('injuries.json');
+      const roller = makeRoller(state.rng);
+      state = advanceTurn(state);
+      const enemyRun = runEnemyTurns(state, roller, injuries);
+      state = enemyRun.state;
+      let finished = false; let outcome; let casualties;
+      if (state.activeBattle && getBattleOutcome(state) !== 'ongoing') {
+        outcome = getBattleOutcome(state);
+        const c = concludeBattle(state, roller, { battleId: state.activeBattle.battleId, dayOfCampaign: state.meta.day, location: 'the field' });
+        state = c.state; finished = true; casualties = c.casualties;
+      }
       mutated = true;
-      const battle = state.activeBattle!;
-      const nextId = battle.turnOrder[battle.currentTurnIndex];
-      result = { op: 'combat.end-turn', nextTurn: nextId, turnIndex: battle.currentTurnIndex };
+      result = { op: 'combat.end-turn', log: enemyRun.log, finished, outcome, casualties, currentTurn: state.activeBattle ? currentActorId(state) : null };
       break;
     }
 
