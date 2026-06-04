@@ -10,7 +10,7 @@
     "warband": "tsx src/warband/cli.ts",
     "warband-serve": "tsx src/warband/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"test/**/*.test.ts\"",
     "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/cli.mjs"
   },
   "dependencies": {
