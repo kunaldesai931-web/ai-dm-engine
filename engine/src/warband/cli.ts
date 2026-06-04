@@ -268,8 +268,9 @@ function main() {
       if (!enemiesArg) throw new EngineError('--enemies "id:type,id:type" required');
       const enemyDefs = loadData<any[]>('enemies.json');
       const spawns: EnemySpawn[] = enemiesArg.split(',').map((token) => {
-        const [id, typeId] = token.trim().split(':');
-        if (!id || !typeId) throw new EngineError(`bad enemy token "${token}" — use id:typeId`);
+        const parts = token.trim().split(':');
+        if (parts.length !== 2) throw new EngineError(`bad enemy token "${token.trim()}" — expected format: id:typeId`);
+        const [id, typeId] = parts;
         const def = enemyDefs.find((d: any) => d.id === typeId);
         if (!def) throw new EngineError(`unknown enemy type "${typeId}". Available: ${enemyDefs.map((d: any) => d.id).join(', ')}`);
         return { id, typeId, name: def.name, stats: def.stats, morale: def.morale, weaponCategory: def.weaponCategory, named: def.named ?? false };
@@ -290,7 +291,9 @@ function main() {
 
     case 'combat status': {
       if (!state.activeBattle) throw new EngineError('no active battle');
-      const currentId = state.activeBattle.turnOrder[state.activeBattle.currentTurnIndex];
+      const { turnOrder, currentTurnIndex } = state.activeBattle;
+      if (currentTurnIndex >= turnOrder.length) throw new EngineError('invalid battle state: turn index out of range');
+      const currentId = turnOrder[currentTurnIndex];
       result = {
         op: 'combat.status',
         battleId: state.activeBattle.battleId,
@@ -333,8 +336,8 @@ function main() {
         injury: attackResult.injuryTriggered,
         moraleEvents: attackResult.moraleEvents,
         narrative: attackResult.narrative,
-        targetHp: state.activeBattle!.units[targetId]?.currentHp,
-        targetStatus: state.activeBattle!.units[targetId]?.status,
+        targetHp: state.activeBattle?.units[targetId]?.currentHp ?? null,
+        targetStatus: state.activeBattle?.units[targetId]?.status ?? null,
         battleOutcome: getBattleOutcome(state),
       };
       break;
