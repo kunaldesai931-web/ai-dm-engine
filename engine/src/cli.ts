@@ -15,7 +15,7 @@ import * as combat from './combat';
 import * as session from './session';
 import * as srd from './srd';
 import * as chronicle from './chronicle';
-import { scaffoldCampaignState } from './chargen';
+import { scaffoldCampaignState, assembleCharacter } from './chargen';
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -87,7 +87,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock', 'character'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -242,6 +242,23 @@ function main() {
       actor.inventory.push({ id: iid, type: 'intel', note: str(flags.note) ?? '', status: str(flags.status) ?? 'secured', tags: str(flags.tags)?.split(',').map((t) => t.trim()) ?? [] });
       result = { op: 'intel.add', actor: str(flags.actor), id: iid }; mutated = true; break;
     }
+    case 'character create': {
+      const id = str(flags.id); if (!id) throw new EngineError('--id required');
+      if ((state as any).pcs?.[id]) throw new EngineError(`pc "${id}" already exists`);
+      const abilities = { str: num(flags.str)!, dex: num(flags.dex)!, con: num(flags.con)!, int: num(flags.int)!, wis: num(flags.wis)!, cha: num(flags.cha)! };
+      const skills = str(flags.skills) ? str(flags.skills)!.split(',').map((s) => s.trim()) : [];
+      const bgSkills = str(flags.bgSkills) ? str(flags.bgSkills)!.split(',').map((s) => s.trim()) : undefined;
+      const pc = assembleCharacter({
+        id, name: str(flags.name)!, race: str(flags.race)!, subrace: str(flags.subrace) || undefined,
+        cls: str(flags.class)!, background: str(flags.background) || undefined, bgSkills,
+        abilities, skills, armorAc: num(flags.ac) ?? undefined,
+      });
+      (state as any).pcs = (state as any).pcs || {};
+      (state as any).pcs[id] = pc;
+      result = { op: 'character.create', id, pc };
+      mutated = true;
+      break;
+    }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
 
@@ -279,7 +296,8 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   session start | session end
   chronicle append --text "<turn summary>" | chronicle compress | chronicle commit --summary "<text>" | chronicle read
   campaign list | campaign load
-  campaign new --name <slug> [--seed <s>]`;
+  campaign new --name <slug> [--seed <s>]
+  character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--ac N]`;
 
 try { main(); }
 catch (err: any) {
