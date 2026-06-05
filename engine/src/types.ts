@@ -46,7 +46,7 @@ export const Character = z.looseObject({
   hp: HP.optional(),
   hitDice: z.looseObject({ used: z.number().int().min(0).default(0), max: z.number().int().min(1).optional() }).optional(),
   saves: z.array(z.string()).optional(),
-  skills: z.record(z.string(), z.string()).optional(),
+  skills: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
   spellSlots: z.record(z.string(), SpellSlot).optional(),
   knownSpells: z.array(z.string()).optional(),
   features: z.array(z.string()).optional(),
