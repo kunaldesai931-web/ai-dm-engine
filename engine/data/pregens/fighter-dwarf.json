@@ -1,0 +1,43 @@
+{
+  "name": "Bruna Stoneheart",
+  "race": "dwarf",
+  "subrace": "hill-dwarf",
+  "class": "Fighter",
+  "level": 1,
+  "abilities": {
+    "str": 16,
+    "dex": 12,
+    "con": 17,
+    "int": 8,
+    "wis": 14,
+    "cha": 10
+  },
+  "profBonus": 2,
+  "ac": 11,
+  "speed": 25,
+  "initiativeMod": 1,
+  "hp": {
+    "current": 13,
+    "max": 13,
+    "temp": 0
+  },
+  "hitDice": {
+    "used": 0,
+    "max": 1
+  },
+  "saves": [
+    "str",
+    "con"
+  ],
+  "skills": {
+    "athletics": "proficient",
+    "perception": "proficient",
+    "insight": "proficient",
+    "religion": "proficient"
+  },
+  "features": [
+    "fighter-fighting-style",
+    "second-wind"
+  ],
+  "xp": 0
+}
