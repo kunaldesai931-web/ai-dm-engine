@@ -65,10 +65,100 @@ export function getMonster(q: string): MonsterInfo | null {
   };
 }
 
+const skillIndex = (raw: string) => raw.replace(/^skill-/, '');
+
+export interface ClassInfo {
+  name: string; index: string; hitDie: number; saves: string[];
+  skillChoices: { choose: number; from: string[] };
+  casts: boolean; castingAbility?: string;
+}
+export function getClass(q: string): ClassInfo | null {
+  const e = find('5e-SRD-Classes.json', q);
+  if (!e) return null;
+  const skillChoice = (e.proficiency_choices || []).find((pc: any) =>
+    (pc.from?.options || []).some((o: any) => String(o.item?.index || '').startsWith('skill-')));
+  const from = (skillChoice?.from?.options || [])
+    .map((o: any) => skillIndex(String(o.item?.index || '')))
+    .filter(Boolean);
+  return {
+    name: e.name, index: e.index, hitDie: e.hit_die,
+    saves: (e.saving_throws || []).map((s: any) => s.index),
+    skillChoices: { choose: skillChoice?.choose ?? 0, from },
+    casts: !!e.spellcasting,
+    castingAbility: e.spellcasting?.spellcasting_ability?.index,
+  };
+}
+
+export interface RaceInfo {
+  name: string; index: string; speed: number; size: string;
+  abilityBonuses: Array<{ ability: string; bonus: number }>;
+  languages: string[]; traits: string[]; subraces: string[];
+}
+export function getRace(q: string): RaceInfo | null {
+  const e = find('5e-SRD-Races.json', q);
+  if (!e) return null;
+  return {
+    name: e.name, index: e.index, speed: e.speed, size: e.size,
+    abilityBonuses: (e.ability_bonuses || []).map((b: any) => ({ ability: b.ability_score.index, bonus: b.bonus })),
+    languages: (e.languages || []).map((l: any) => l.index),
+    traits: (e.traits || []).map((t: any) => t.index),
+    subraces: (e.subraces || []).map((s: any) => s.index),
+  };
+}
+
+export interface SubraceInfo {
+  name: string; index: string; race: string;
+  abilityBonuses: Array<{ ability: string; bonus: number }>; traits: string[];
+}
+export function getSubrace(q: string): SubraceInfo | null {
+  const e = find('5e-SRD-Subraces.json', q);
+  if (!e) return null;
+  return {
+    name: e.name, index: e.index, race: e.race?.index,
+    abilityBonuses: (e.ability_bonuses || []).map((b: any) => ({ ability: b.ability_score.index, bonus: b.bonus })),
+    traits: (e.racial_traits || e.traits || []).map((t: any) => t.index),
+  };
+}
+
+export interface BackgroundInfo { name: string; index: string; skills: string[]; }
+export function getBackground(q: string): BackgroundInfo | null {
+  const e = find('5e-SRD-Backgrounds.json', q);
+  if (!e) return null;
+  const skills = (e.starting_proficiencies || [])
+    .map((p: any) => String(p.index || ''))
+    .filter((i: string) => i.startsWith('skill-'))
+    .map(skillIndex);
+  return { name: e.name, index: e.index, skills };
+}
+
+export interface LevelInfo {
+  profBonus: number; features: string[];
+  spellcasting?: { cantripsKnown: number; slots: number[] };
+}
+export function getLevel(classIndex: string, level: number): LevelInfo | null {
+  const list = load('5e-SRD-Levels.json');
+  const e = list.find((x: any) => x.class?.index === slug(classIndex) && x.level === level);
+  if (!e) return null;
+  let spellcasting: LevelInfo['spellcasting'];
+  if (e.spellcasting && e.spellcasting.cantrips_known !== undefined) {
+    const slots = [0];
+    for (let i = 1; i <= 9; i++) slots[i] = e.spellcasting[`spell_slots_level_${i}`] ?? 0;
+    spellcasting = { cantripsKnown: e.spellcasting.cantrips_known ?? 0, slots };
+  }
+  return {
+    profBonus: e.prof_bonus,
+    features: (e.features || []).map((f: any) => f.index),
+    spellcasting,
+  };
+}
+
 export function lookup(kind: string, q: string) {
   if (!q) throw new EngineError(`srd ${kind} needs a name`);
-  const fn: Record<string, (q: string) => any> = { spell: getSpell, weapon: getWeapon, condition: getCondition, monster: getMonster };
-  if (!fn[kind]) throw new EngineError(`unknown srd kind "${kind}" (spell|weapon|condition|monster)`);
+  const fn: Record<string, (q: string) => any> = {
+    spell: getSpell, weapon: getWeapon, condition: getCondition, monster: getMonster,
+    class: getClass, race: getRace, background: getBackground,
+  };
+  if (!fn[kind]) throw new EngineError(`unknown srd kind "${kind}" (spell|weapon|condition|monster|class|race|background)`);
   const r = fn[kind](q);
   if (!r) throw new EngineError(`no SRD ${kind} matching "${q}"`);
   return r;

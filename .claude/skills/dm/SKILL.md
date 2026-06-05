@@ -38,6 +38,39 @@ Campaigns live in `<repo>/campaigns/<name>/`:
 
 **END:** `chronicle commit --summary "<what happened this session>" --campaign <c>`. Compress memory logs if they've grown large (`chronicle compress`).
 
+## New Game / Session Zero
+
+When the player wants to start a fresh game or make a character, offer two on-ramps. The engine owns every number here too — you guide the choices; `character create` assembles a correct, validated PC. (Build the bundle once if needed: `npm --prefix engine run build`.)
+
+**Quick-start (≈30 seconds):** offer the pre-made heroes (`engine/data/pregens/` — currently a Dwarf Fighter `fighter-dwarf` and an Elf Wizard `wizard-elf`). Then:
+1. `campaign new --name <slug>` — scaffold a fresh campaign.
+2. `character create --campaign <slug> --id pc-1 --from-pregen <pregen> --name "<player's name>"`.
+3. Open the first scene (the START/RESUME flow above, but framed fresh).
+
+**Full build (session zero — narrate it, don't make it a form):** walk the player through, one beat at a time:
+1. **Race** → surface options with `srd race <name>`; ask about subrace if the race has one (`getRace` lists them — e.g. hill vs mountain dwarf).
+2. **Class** → `srd class <name>` shows hit die, saves, and the skill list to choose from.
+3. **Background** → `srd background acolyte` is the only SRD background; otherwise run a **custom background** — pick a concept and two skills with the player, pass them as `--bgSkills a,b`.
+4. **Ability scores** — offer the method, then assign with the player:
+   - *Roll* `4d6 drop lowest` ×6: run `roll 4d6 --campaign <slug>`, read the four dice, drop the lowest yourself, six times. Honest dice via the engine.
+   - *Standard array* `[15, 14, 13, 12, 10, 8]`.
+   - *Point-buy* (27 points; 8–15 before racial bonuses).
+   Pass the **base** scores (pre-racial) to `character create`; the engine applies racial/subrace bonuses.
+5. **Skills** — choose the class's allowed number from its list (`srd class` → skill options).
+6. **Spells** (casters only) — pick cantrips (count from the class) and level-1 spells; pass `--cantrips a,b --spells c,d`. The engine rejects any non-SRD spell.
+7. **Name & one line of concept.**
+
+Resolve the whole build in ONE `character create` call:
+```
+character create --campaign <slug> --id pc-1 --name "<name>" \
+  --race R [--subrace S] --class CL [--background acolyte | --bgSkills a,b] \
+  --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 \
+  [--cantrips …] [--spells …]
+```
+Read the result back, confirm the assembled numbers with the player ("HP 13, +5 to hit with that axe…"), then hand them into the opening scene.
+
+**Smoothness:** the build is a *conversation*. Only call the engine for ability dice and the single final `character create` — don't over-call between choices.
+
 ## The iron rule
 
 Never state a die roll, HP number, AC, DC outcome, or saved fact the engine didn't return. Trivial actions with no real stakes are narrated directly with **no engine call**. When stakes are real, call the engine and narrate its result.

@@ -1,0 +1,57 @@
+{
+  "name": "Iola Brightwood",
+  "race": "elf",
+  "subrace": "high-elf",
+  "class": "Wizard",
+  "level": 1,
+  "abilities": {
+    "str": 8,
+    "dex": 16,
+    "con": 13,
+    "int": 17,
+    "wis": 12,
+    "cha": 10
+  },
+  "profBonus": 2,
+  "ac": 13,
+  "speed": 30,
+  "initiativeMod": 3,
+  "hp": {
+    "current": 7,
+    "max": 7,
+    "temp": 0
+  },
+  "hitDice": {
+    "used": 0,
+    "max": 1
+  },
+  "saves": [
+    "int",
+    "wis"
+  ],
+  "skills": {
+    "arcana": "proficient",
+    "investigation": "proficient",
+    "insight": "proficient",
+    "religion": "proficient"
+  },
+  "features": [
+    "spellcasting-wizard",
+    "arcane-recovery"
+  ],
+  "xp": 0,
+  "castingAbility": "int",
+  "spellSlots": {
+    "1": {
+      "used": 0,
+      "max": 2
+    }
+  },
+  "knownSpells": [
+    "fire-bolt",
+    "mage-hand",
+    "light",
+    "magic-missile",
+    "shield"
+  ]
+}

@@ -4,6 +4,7 @@
 // The narrator reads the printed JSON; it never invents a number a tool didn't return.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { EngineError } from './core/errors';
 import { rollNotation } from './core/dice';
 import { makeRoller } from './core/rng';
@@ -15,6 +16,11 @@ import * as combat from './combat';
 import * as session from './session';
 import * as srd from './srd';
 import * as chronicle from './chronicle';
+import { scaffoldCampaignState, assembleCharacter } from './chargen';
+
+// engine/src/cli.ts (tsx) or engine/dist/cli.mjs (bundle); both sit one dir under
+// engine/, so the pregens dir resolves to engine/data/pregens either way.
+const PREGENS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'pregens');
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -68,13 +74,25 @@ function main() {
       : [];
     return out({ op: 'campaign.list', campaigns: list });
   }
+  if (cmd === 'campaign' && sub === 'new') {
+    const name = str(flags.name);
+    if (!name) throw new EngineError('campaign new --name <slug> required');
+    const dir = path.join(CAMPAIGNS_DIR, name);
+    if (fs.existsSync(path.join(dir, 'state.json'))) throw new EngineError(`campaign "${name}" already exists`);
+    const seed = str(flags.seed) || `${name}-seed`;
+    const state = parseState(scaffoldCampaignState(name, seed));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(state, null, 2));
+    fs.writeFileSync(path.join(dir, 'log.jsonl'), '');
+    return out({ op: 'campaign.new', campaign: name, dir });
+  }
   if (cmd === 'srd') return out({ op: 'srd', kind: sub, result: srd.lookup(sub, positional[2] || (str(flags.name) as string)) });
 
   const campaign = resolveCampaign(str(flags.campaign));
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock', 'character'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -229,6 +247,35 @@ function main() {
       actor.inventory.push({ id: iid, type: 'intel', note: str(flags.note) ?? '', status: str(flags.status) ?? 'secured', tags: str(flags.tags)?.split(',').map((t) => t.trim()) ?? [] });
       result = { op: 'intel.add', actor: str(flags.actor), id: iid }; mutated = true; break;
     }
+    case 'character create': {
+      const id = str(flags.id); if (!id) throw new EngineError('--id required');
+      if ((state as any).pcs?.[id]) throw new EngineError(`pc "${id}" already exists`);
+      const fromPregen = str(flags['from-pregen']);
+      let pc: any;
+      if (fromPregen) {
+        const file = path.join(PREGENS_DIR, `${fromPregen}.json`);
+        if (!fs.existsSync(file)) throw new EngineError(`unknown pregen "${fromPregen}"`);
+        pc = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const name = str(flags.name);
+        if (name) pc.name = name;
+      } else {
+      const abilities = { str: num(flags.str)!, dex: num(flags.dex)!, con: num(flags.con)!, int: num(flags.int)!, wis: num(flags.wis)!, cha: num(flags.cha)! };
+      const skills = str(flags.skills) ? str(flags.skills)!.split(',').map((s) => s.trim()) : [];
+      const bgSkills = str(flags.bgSkills) ? str(flags.bgSkills)!.split(',').map((s) => s.trim()) : undefined;
+      const cantrips = str(flags.cantrips) ? str(flags.cantrips)!.split(',').map((s) => s.trim()) : undefined;
+      const spells = str(flags.spells) ? str(flags.spells)!.split(',').map((s) => s.trim()) : undefined;
+      pc = assembleCharacter({
+        id, name: str(flags.name)!, race: str(flags.race)!, subrace: str(flags.subrace) || undefined,
+        cls: str(flags.class)!, background: str(flags.background) || undefined, bgSkills,
+        abilities, skills, cantrips, spells, armorAc: num(flags.ac) ?? undefined,
+      });
+      }
+      (state as any).pcs = (state as any).pcs || {};
+      (state as any).pcs[id] = pc;
+      result = { op: 'character.create', id, pc };
+      mutated = true;
+      break;
+    }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
 
@@ -265,7 +312,10 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   region enter <id> | region leave
   session start | session end
   chronicle append --text "<turn summary>" | chronicle compress | chronicle commit --summary "<text>" | chronicle read
-  campaign list | campaign load`;
+  campaign list | campaign load
+  campaign new --name <slug> [--seed <s>]
+  character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--cantrips c1,c2] [--spells s1,s2] [--ac N]
+  character create --from-pregen <id> --id ID [--name "…"]   # quick-start from engine/data/pregens`;
 
 try { main(); }
 catch (err: any) {
