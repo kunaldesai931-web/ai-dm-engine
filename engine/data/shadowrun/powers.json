@@ -1,0 +1,9 @@
+[
+  { "name": "improved-reflexes-1", "cost": 1.5, "modifiers": { "reaction": 1, "initiativeDice": 1 } },
+  { "name": "improved-reflexes-2", "cost": 2.5, "modifiers": { "reaction": 2, "initiativeDice": 2 } },
+  { "name": "critical-strike", "cost": 0.5, "modifiers": { "unarmedDamage": 1 } },
+  { "name": "killing-hands", "cost": 0.5, "modifiers": {} },
+  { "name": "mystic-armor-1", "cost": 0.5, "modifiers": { "armor": 1 } },
+  { "name": "improved-ability-firearms", "cost": 1, "modifiers": {} },
+  { "name": "enhanced-perception", "cost": 0.5, "modifiers": {} }
+]
