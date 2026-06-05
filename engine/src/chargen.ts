@@ -1,6 +1,6 @@
 import type { TState } from './types';
 import { EngineError } from './core/errors';
-import { getClass, getRace, getSubrace, getBackground, getLevel } from './srd';
+import { getClass, getRace, getSubrace, getBackground, getLevel, getSpell } from './srd';
 
 export function scaffoldCampaignState(name: string, seed: string): TState {
   return {
@@ -15,6 +15,7 @@ export interface ChargenInput {
   race: string; subrace?: string; cls: string; background?: string; bgSkills?: string[];
   abilities: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   skills: string[];
+  cantrips?: string[]; spells?: string[];
   armorAc?: number; // optional precomputed AC from chosen armor; default unarmored
 }
 
@@ -57,6 +58,26 @@ export function assembleCharacter(input: ChargenInput): any {
   const conMod = mod(abilities.con);
   const hpMax = cls.hitDie + conMod;
 
+  let spellFields: any = {};
+  if (cls.casts && lvl.spellcasting) {
+    const sc = lvl.spellcasting;
+    const cantrips = input.cantrips ?? [];
+    const spells = input.spells ?? [];
+    if (cantrips.length > sc.cantripsKnown) {
+      throw new EngineError(`${cls.name} knows ${sc.cantripsKnown} cantrips at level 1, got ${cantrips.length}`);
+    }
+    for (const s of [...cantrips, ...spells]) {
+      if (!getSpell(s)) throw new EngineError(`"${s}" is not a real SRD spell`);
+    }
+    const spellSlots: Record<string, { used: number; max: number }> = {};
+    for (let i = 1; i <= 9; i++) if (sc.slots[i] > 0) spellSlots[String(i)] = { used: 0, max: sc.slots[i] };
+    spellFields = {
+      castingAbility: cls.castingAbility,
+      spellSlots,
+      knownSpells: [...cantrips, ...spells],
+    };
+  }
+
   return {
     name: input.name,
     race: race.index, subrace: sub?.index ?? null, class: cls.name, level: 1,
@@ -71,5 +92,6 @@ export function assembleCharacter(input: ChargenInput): any {
     skills,
     features: [...lvl.features],
     xp: 0,
+    ...spellFields,
   };
 }

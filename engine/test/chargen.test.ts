@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assembleCharacter } from '../src/chargen.js';
 import { EngineError } from '../src/core/errors.js';
+import { getSpell } from '../src/srd.js';
 
 const FIGHTER = {
   id: 'hero', name: 'Bruna', race: 'dwarf', subrace: 'hill-dwarf', cls: 'fighter', background: 'acolyte',
@@ -47,4 +48,32 @@ test('assembleCharacter rejects too many class skills', () => {
 test('assembleCharacter rejects unknown race/class', () => {
   assert.throws(() => assembleCharacter({ ...FIGHTER, race: 'goblinoid' }), EngineError);
   assert.throws(() => assembleCharacter({ ...FIGHTER, cls: 'bard-of-doom' }), EngineError);
+});
+
+const WIZARD = {
+  id: 'mage', name: 'Iola', race: 'elf', subrace: 'high-elf', cls: 'wizard', background: 'acolyte',
+  abilities: { str: 8, dex: 14, con: 13, int: 15, wis: 12, cha: 10 },
+  skills: ['arcana', 'investigation'],
+  cantrips: ['fire-bolt', 'mage-hand', 'light'],
+  spells: ['magic-missile', 'shield'],
+};
+
+test('a wizard gets level-1 slots and cantrips from Levels data', () => {
+  const c = assembleCharacter(WIZARD);
+  assert.equal(c.spellSlots['1'].max, 2);
+  assert.equal(c.knownSpells.length, 5); // 3 cantrips + 2 spells
+  assert.equal(c.castingAbility, 'int');
+});
+
+test('a non-caster has no spell slots', () => {
+  const c = assembleCharacter(FIGHTER);
+  assert.ok(!c.spellSlots || Object.keys(c.spellSlots).length === 0);
+});
+
+test('rejects a spell that is not a real SRD spell', () => {
+  assert.throws(() => assembleCharacter({ ...WIZARD, spells: ['ultra-death-ray'] }), EngineError);
+});
+
+test('rejects more cantrips than the class knows at level 1', () => {
+  assert.throws(() => assembleCharacter({ ...WIZARD, cantrips: ['fire-bolt', 'mage-hand', 'light', 'prestidigitation'] }), EngineError);
 });

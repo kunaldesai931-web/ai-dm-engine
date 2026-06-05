@@ -248,10 +248,12 @@ function main() {
       const abilities = { str: num(flags.str)!, dex: num(flags.dex)!, con: num(flags.con)!, int: num(flags.int)!, wis: num(flags.wis)!, cha: num(flags.cha)! };
       const skills = str(flags.skills) ? str(flags.skills)!.split(',').map((s) => s.trim()) : [];
       const bgSkills = str(flags.bgSkills) ? str(flags.bgSkills)!.split(',').map((s) => s.trim()) : undefined;
+      const cantrips = str(flags.cantrips) ? str(flags.cantrips)!.split(',').map((s) => s.trim()) : undefined;
+      const spells = str(flags.spells) ? str(flags.spells)!.split(',').map((s) => s.trim()) : undefined;
       const pc = assembleCharacter({
         id, name: str(flags.name)!, race: str(flags.race)!, subrace: str(flags.subrace) || undefined,
         cls: str(flags.class)!, background: str(flags.background) || undefined, bgSkills,
-        abilities, skills, armorAc: num(flags.ac) ?? undefined,
+        abilities, skills, cantrips, spells, armorAc: num(flags.ac) ?? undefined,
       });
       (state as any).pcs = (state as any).pcs || {};
       (state as any).pcs[id] = pc;
@@ -297,7 +299,7 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   chronicle append --text "<turn summary>" | chronicle compress | chronicle commit --summary "<text>" | chronicle read
   campaign list | campaign load
   campaign new --name <slug> [--seed <s>]
-  character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--ac N]`;
+  character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--cantrips c1,c2] [--spells s1,s2] [--ac N]`;
 
 try { main(); }
 catch (err: any) {
