@@ -15,6 +15,7 @@ import * as combat from './combat';
 import * as session from './session';
 import * as srd from './srd';
 import * as chronicle from './chronicle';
+import { scaffoldCampaignState } from './chargen';
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -67,6 +68,18 @@ function main() {
       ? fs.readdirSync(CAMPAIGNS_DIR).filter((d) => fs.existsSync(path.join(CAMPAIGNS_DIR, d, 'state.json')))
       : [];
     return out({ op: 'campaign.list', campaigns: list });
+  }
+  if (cmd === 'campaign' && sub === 'new') {
+    const name = str(flags.name);
+    if (!name) throw new EngineError('campaign new --name <slug> required');
+    const dir = path.join(CAMPAIGNS_DIR, name);
+    if (fs.existsSync(path.join(dir, 'state.json'))) throw new EngineError(`campaign "${name}" already exists`);
+    const seed = str(flags.seed) || `${name}-seed`;
+    const state = parseState(scaffoldCampaignState(name, seed));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(state, null, 2));
+    fs.writeFileSync(path.join(dir, 'log.jsonl'), '');
+    return out({ op: 'campaign.new', campaign: name, dir });
   }
   if (cmd === 'srd') return out({ op: 'srd', kind: sub, result: srd.lookup(sub, positional[2] || (str(flags.name) as string)) });
 
@@ -265,7 +278,8 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   region enter <id> | region leave
   session start | session end
   chronicle append --text "<turn summary>" | chronicle compress | chronicle commit --summary "<text>" | chronicle read
-  campaign list | campaign load`;
+  campaign list | campaign load
+  campaign new --name <slug> [--seed <s>]`;
 
 try { main(); }
 catch (err: any) {
