@@ -336,6 +336,19 @@ function main() {
       result = { op: 'sr.init', actor: id, ...r, rng: roller.consumed() };
       mutated = true; break;
     }
+    case 'sr cast': {
+      const id = str(flags.actor); const force = num(flags.force); const dv = num(flags.dv);
+      if (!id || force === undefined || dv === undefined) throw new EngineError('sr cast --actor ID --force N --dv N [--pool N] [--resist N]');
+      const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      const castingPool = num(flags.pool) ?? (a.attributes.magic + (a.skills['spellcasting'] ?? 0));
+      const resistPool = num(flags.resist) ?? (a.attributes.willpower + (a.tradition === 'shamanic' ? a.attributes.charisma : a.attributes.logic));
+      const roller = makeRoller(state.rng);
+      const cast = sr.castSpell(roller, { force, magic: a.attributes.magic, castingPool, drainValue: dv, drainResistPool: resistPool });
+      const dmg = sr.applyDamage(a.monitors, cast.drainTaken, cast.drainType, a.attributes.body);
+      (state as any).pcs[id].monitors = dmg.monitors;
+      result = { op: 'sr.cast', actor: id, force, ...cast, monitors: dmg.monitors, status: dmg.status, rng: roller.consumed() };
+      mutated = true; break;
+    }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
 
@@ -381,7 +394,8 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   sr test   --actor ID --attr A [--skill S] [--threshold N]
   sr soak   --actor ID --damage N [--ap N]
   sr damage --actor ID --amount N --type physical|stun
-  sr init   --actor ID`;
+  sr init   --actor ID
+  sr cast   --actor ID --force N --dv N [--pool N] [--resist N]`;
 
 try { main(); }
 catch (err: any) {
