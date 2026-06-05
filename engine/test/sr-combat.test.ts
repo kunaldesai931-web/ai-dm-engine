@@ -52,3 +52,12 @@ test('initiative = reaction + intuition + hits', () => {
   assert.equal(r.hits, 2);
   assert.equal(r.total, 10);
 });
+
+test('initiativeDice adds dice to the initiative pool', () => {
+  const a = runner({ initiativeDice: 2 }); // reaction 4 + intuition 4 = score 8, +2 dice rolled
+  // script 10 dice: first 8 are the base pool, +2 from initiativeDice; give 3 hits total
+  const r = initiative(a, fakeRoller([5, 6, 2, 2, 2, 2, 2, 2, 5, 2]));
+  assert.equal(r.score, 8);
+  assert.equal(r.hits, 3);
+  assert.equal(r.total, 11);
+});
