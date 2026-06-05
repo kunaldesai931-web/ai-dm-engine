@@ -17,6 +17,7 @@ import * as session from './session';
 import * as srd from './srd';
 import * as chronicle from './chronicle';
 import { scaffoldCampaignState, assembleCharacter } from './chargen';
+import * as sr from './shadowrun';
 
 // engine/src/cli.ts (tsx) or engine/dist/cli.mjs (bundle); both sit one dir under
 // engine/, so the pregens dir resolves to engine/data/pregens either way.
@@ -92,7 +93,7 @@ function main() {
   const state = loadState(campaign);
 
   let result: any, mutated = false;
-  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock', 'character'].includes(cmd)
+  const key = sub && ['state', 'combat', 'region', 'session', 'inventory', 'monster', 'campaign', 'chronicle', 'npc', 'faction', 'clock', 'character', 'sr'].includes(cmd)
     ? `${cmd} ${sub}` : cmd;
 
   switch (key) {
@@ -276,6 +277,51 @@ function main() {
       mutated = true;
       break;
     }
+    case 'sr pool': {
+      const dice = num(flags.dice);
+      if (dice === undefined) throw new EngineError('sr pool --dice N [--threshold N]');
+      const roller = makeRoller(state.rng);
+      const r = sr.rollPool(roller, dice, num(flags.threshold));
+      result = { op: 'sr.pool', ...r, rng: roller.consumed() };
+      mutated = true; break;
+    }
+    case 'sr test': {
+      const id = str(flags.actor); const attr = str(flags.attr); const skill = str(flags.skill);
+      if (!id || !attr) throw new EngineError('sr test --actor ID --attr A [--skill S] [--threshold N]');
+      const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      const pool = (a.attributes as any)[attr] + (skill ? (a.skills[skill] ?? 0) : 0);
+      const roller = makeRoller(state.rng);
+      const r = sr.rollPool(roller, pool, num(flags.threshold));
+      result = { op: 'sr.test', actor: id, attr, skill: skill ?? null, pool, ...r, rng: roller.consumed() };
+      mutated = true; break;
+    }
+    case 'sr soak': {
+      const id = str(flags.actor); const damage = num(flags.damage);
+      if (!id || damage === undefined) throw new EngineError('sr soak --actor ID --damage N [--ap N]');
+      const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      const roller = makeRoller(state.rng);
+      const r = sr.soak(a, roller, damage, num(flags.ap) ?? 0);
+      result = { op: 'sr.soak', actor: id, ...r, rng: roller.consumed() };
+      mutated = true; break;
+    }
+    case 'sr damage': {
+      const id = str(flags.actor); const amount = num(flags.amount); const type = str(flags.type);
+      if (!id || amount === undefined || (type !== 'physical' && type !== 'stun')) throw new EngineError('sr damage --actor ID --amount N --type physical|stun');
+      const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      const res = sr.applyDamage(a.monitors, amount, type, a.attributes.body);
+      (state as any).pcs[id].monitors = res.monitors;
+      result = { op: 'sr.damage', actor: id, monitors: res.monitors, status: res.status };
+      mutated = true; break;
+    }
+    case 'sr init': {
+      const id = str(flags.actor);
+      if (!id) throw new EngineError('sr init --actor ID');
+      const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      const roller = makeRoller(state.rng);
+      const r = sr.initiative(a, roller);
+      result = { op: 'sr.init', actor: id, ...r, rng: roller.consumed() };
+      mutated = true; break;
+    }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
   }
 
@@ -315,7 +361,12 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   campaign list | campaign load
   campaign new --name <slug> [--seed <s>]
   character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--cantrips c1,c2] [--spells s1,s2] [--ac N]
-  character create --from-pregen <id> --id ID [--name "…"]   # quick-start from engine/data/pregens`;
+  character create --from-pregen <id> --id ID [--name "…"]   # quick-start from engine/data/pregens
+  sr pool   --dice N [--threshold N]
+  sr test   --actor ID --attr A [--skill S] [--threshold N]
+  sr soak   --actor ID --damage N [--ap N]
+  sr damage --actor ID --amount N --type physical|stun
+  sr init   --actor ID`;
 
 try { main(); }
 catch (err: any) {
