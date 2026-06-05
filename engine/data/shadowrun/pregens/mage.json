@@ -1,0 +1,9 @@
+{
+  "name": "Wisp", "sr": true,
+  "attributes": { "body": 3, "agility": 3, "reaction": 4, "strength": 2, "willpower": 5, "logic": 5, "intuition": 4, "charisma": 4, "edge": 3, "magic": 6 },
+  "skills": { "spellcasting": 6, "perception": 3, "stealth": 3, "con": 4 },
+  "monitors": { "physical": { "max": 10, "damage": 0 }, "stun": { "max": 11, "damage": 0 } },
+  "edgeCurrent": 3, "armor": 7,
+  "tradition": "hermetic",
+  "spells": [{ "name": "Manabolt", "drain": 3 }, { "name": "Stunbolt", "drain": 3 }, { "name": "Heal", "drain": 4 }, { "name": "Invisibility", "drain": 5 }]
+}

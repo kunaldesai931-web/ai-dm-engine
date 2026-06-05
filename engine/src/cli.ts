@@ -22,6 +22,7 @@ import * as sr from './shadowrun';
 // engine/src/cli.ts (tsx) or engine/dist/cli.mjs (bundle); both sit one dir under
 // engine/, so the pregens dir resolves to engine/data/pregens either way.
 const PREGENS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'pregens');
+const SR_PREGENS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'shadowrun', 'pregens');
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -277,6 +278,19 @@ function main() {
       mutated = true;
       break;
     }
+    case 'sr new-runner': {
+      const id = str(flags.id); const from = str(flags.from);
+      if (!id || !from) throw new EngineError('sr new-runner --id ID --from street-sam|mage');
+      if ((state as any).pcs?.[id]) throw new EngineError(`pc "${id}" already exists`);
+      const file = path.join(SR_PREGENS_DIR, `${from}.json`);
+      if (!fs.existsSync(file)) throw new EngineError(`unknown SR pregen "${from}"`);
+      const actor = sr.parseShadowrunActor(JSON.parse(fs.readFileSync(file, 'utf8')));
+      const name = str(flags.name); if (name) (actor as any).name = name;
+      (state as any).pcs = (state as any).pcs || {};
+      (state as any).pcs[id] = actor;
+      result = { op: 'sr.new-runner', id, actor };
+      mutated = true; break;
+    }
     case 'sr pool': {
       const dice = num(flags.dice);
       if (dice === undefined) throw new EngineError('sr pool --dice N [--threshold N]');
@@ -362,6 +376,7 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   campaign new --name <slug> [--seed <s>]
   character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--cantrips c1,c2] [--spells s1,s2] [--ac N]
   character create --from-pregen <id> --id ID [--name "…"]   # quick-start from engine/data/pregens
+  sr new-runner --id ID --from street-sam|mage [--name "…"]   # quick-start from engine/data/shadowrun/pregens
   sr pool   --dice N [--threshold N]
   sr test   --actor ID --attr A [--skill S] [--threshold N]
   sr soak   --actor ID --damage N [--ap N]
