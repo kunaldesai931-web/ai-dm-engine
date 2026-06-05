@@ -100,6 +100,23 @@ Consult `rulesets/<rulesetId>.md` for *when* to roll and *what* DC. Then:
 | Record a clue | `intel add --actor ID --id key --note "…"` |
 | Move the party | `region enter <id>` / `region leave` |
 
+## Shadowrun (when `meta.rulesetId === 'shadowrun'`)
+
+A *different* system — use the `sr` commands, never the d20 `check/attack/cast`. Consult `rulesets/shadowrun.md`. Dice **pools** of d6, count **hits** (5–6); watch for **glitches**; no HP — **condition monitors** (Physical/Stun); and **Drain** that bites mages back. The iron rule still holds: the engine owns every hit, glitch, soak, and point of Drain.
+
+| Player intent | Engine command |
+|---|---|
+| Any test (build pool from the actor) | `sr test --actor ID --attr AGILITY --skill firearms [--threshold N]` |
+| Raw pool | `sr pool --dice N [--threshold N]` |
+| Initiative | `sr init --actor ID` (order by `total`) |
+| Firefight — to hit | opposed: `sr test` attacker (skill+attr) vs `sr test` defender (reaction+intuition); net hits add to weapon damage |
+| Firefight — resist | `sr soak --actor ID --damage N [--ap N]` → net damage |
+| Apply wounds | `sr damage --actor ID --amount N --type physical\|stun` (reports `ok\|wounded\|unconscious\|down\|dead`) |
+| Cast a spell | `sr cast --actor ID --force N --dv N` (engine returns `castHits` = the effect, applies Drain to Stun, or Physical if overcasting Force > Magic) |
+| New runner / new game | `campaign new --name <slug>` → `sr new-runner --id pc-1 --from street-sam\|mage --name "<name>"` |
+
+Feel: report **hits**, not totals. Glitches are story beats, not just failures. Edge is precious. Magic is dangerous — narrate the spell from the hits, but never wave away the Drain the engine assigns. Matrix and rigging: adjudicate with ordinary `sr test` vs a threshold you set (no separate subsystem yet).
+
 ## Memory discipline
 
 - After a meaningful beat: `chronicle append --text "<one-line summary>"`.
