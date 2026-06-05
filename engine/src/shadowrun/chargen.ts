@@ -71,8 +71,33 @@ export function assembleRunner(input: RunnerInput, data: SrChargenData): TShadow
     if (input.magic || input.spells?.length || input.powers?.length || input.tradition) {
       throw new EngineError('mundane runners cannot have magic, spells, powers, or a tradition');
     }
+  } else if (magicType === 'magician') {
+    magic = input.magic ?? 0;
+    if (magic < 1 || magic > BUDGETS.MAGIC_MAX) throw new EngineError(`magician Magic must be 1–${BUDGETS.MAGIC_MAX}`);
+    if (!input.tradition) throw new EngineError('a magician needs a tradition (hermetic|shamanic)');
+    if (input.powers?.length) throw new EngineError('magicians use spells, not powers');
+    const names = input.spells ?? [];
+    if (names.length > magic) throw new EngineError(`a magician knows at most Magic (${magic}) spells, got ${names.length}`);
+    spellEntries = names.map((n) => {
+      const sp = data.spells.find((s) => s.name.toLowerCase() === n.toLowerCase());
+      if (!sp) throw new EngineError(`unknown spell "${n}"`);
+      return { name: sp.name, drain: sp.drain };   // engine-owned drain
+    });
+  } else if (magicType === 'adept') {
+    magic = input.magic ?? 0;
+    if (magic < 1 || magic > BUDGETS.MAGIC_MAX) throw new EngineError(`adept Magic must be 1–${BUDGETS.MAGIC_MAX}`);
+    if (input.spells?.length || input.tradition) throw new EngineError('adepts use powers, not spells/tradition');
+    powerNames = input.powers ?? [];
+    let cost = 0;
+    for (const pn of powerNames) {
+      const p = data.powers.find((x) => x.name === pn);
+      if (!p) throw new EngineError(`unknown power "${pn}"`);
+      cost += p.cost;
+      modSources.push(p.modifiers);   // applied with augmentations below
+    }
+    if (cost > magic) throw new EngineError(`adept power points over budget: ${cost} > ${magic}`);
   } else {
-    throw new EngineError(`magicType "${magicType}" not implemented yet`); // Task 4
+    throw new EngineError(`unknown magicType "${magicType}"`);
   }
 
   // edge
