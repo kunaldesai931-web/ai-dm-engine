@@ -117,6 +117,24 @@ A *different* system — use the `sr` commands, never the d20 `check/attack/cast
 
 Feel: report **hits**, not totals. Glitches are story beats, not just failures. Edge is precious. Magic is dangerous — narrate the spell from the hits, but never wave away the Drain the engine assigns. Matrix and rigging: adjudicate with ordinary `sr test` vs a threshold you set (no separate subsystem yet).
 
+### Build a Runner (make your own)
+
+Quick path: `sr new-runner --from street-sam|mage` (pregens). Full build (point-buy, narrated like character creation, not a spreadsheet): walk the player through, one beat at a time, then resolve in ONE `sr create-runner` call.
+
+1. **Metatype** — `sr metatypes` lists the five (human/elf/dwarf/ork/troll) with their attribute mods and bought-ranges. Human gets the most Edge; trolls hit like a truck but are dim and ugly.
+2. **Attributes** — the eight (Body…Charisma) each start at 1; the player spends **20 points** raising them (you track the budget). Bought values stay within the metatype's range; metatype mods and any augments/powers are added on top by the engine.
+3. **Skills** — **24 points** across skills (each ≤ 6).
+4. **Archetype** — pick one and it must mechanically *be* that thing:
+   - **Street samurai** (mundane + chrome): `--augmentations wired-reflexes-1,muscle-replacement-2,…` — these grant real modifiers (reflexes → +Reaction and **initiative dice**; muscle → +Agility/Strength).
+   - **Mage** (`--magic-type magician --magic N --tradition hermetic|shamanic --spells Manabolt,Stunbolt`) — choose spells **by name**; the engine fills each spell's **Drain** from data (the player never sets it). Spell count ≤ Magic.
+   - **Adept** (`--magic-type adept --magic N --powers improved-reflexes-2,critical-strike`) — power points = Magic; the engine checks you don't overspend; powers grant modifiers. Adepts have **no spells** and no tradition.
+   - Or **mundane** with no chrome.
+5. **Edge** — `--edge N` (metatype base, raisable by a small allowance). It's one of the best investments — let them spend it.
+6. **Gear/armor** — `--armor N` (a rating; specific gear is narrated).
+7. **Name & concept** → one `sr create-runner --campaign <c> --id pc-1 --name "…" --metatype … --body N … --skills … [archetype flags]`. Read the assembled runner back, confirm the numbers (condition monitors, initiative dice, known spells + their Drain), and drop them into the opening scene.
+
+The engine validates every budget and rejects illegal builds — you make the choices, it owns the numbers.
+
 ## Memory discipline
 
 - After a meaningful beat: `chronicle append --text "<one-line summary>"`.

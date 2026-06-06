@@ -1,0 +1,8 @@
+[
+  { "name": "wired-reflexes-1", "modifiers": { "reaction": 1, "initiativeDice": 1 } },
+  { "name": "wired-reflexes-2", "modifiers": { "reaction": 2, "initiativeDice": 2 } },
+  { "name": "muscle-replacement-2", "modifiers": { "agility": 2, "strength": 2 } },
+  { "name": "bone-lacing", "modifiers": { "body": 1, "armor": 1 } },
+  { "name": "dermal-plating-2", "modifiers": { "armor": 2, "body": 1 } },
+  { "name": "cybereyes", "modifiers": {} }
+]

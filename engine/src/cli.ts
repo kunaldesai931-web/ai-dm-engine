@@ -23,6 +23,11 @@ import * as sr from './shadowrun';
 // engine/, so the pregens dir resolves to engine/data/pregens either way.
 const PREGENS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'pregens');
 const SR_PREGENS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'shadowrun', 'pregens');
+const SR_DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'shadowrun');
+function loadSrData() {
+  const j = (f: string) => JSON.parse(fs.readFileSync(path.join(SR_DATA_DIR, f), 'utf8'));
+  return { metatypes: j('metatypes.json'), spells: j('spells.json'), powers: j('powers.json'), augmentations: j('augmentations.json') };
+}
 
 interface Parsed { positional: string[]; flags: Record<string, string | true>; sets: string[]; }
 function parseArgs(argv: string[]): Parsed {
@@ -336,17 +341,56 @@ function main() {
       result = { op: 'sr.init', actor: id, ...r, rng: roller.consumed() };
       mutated = true; break;
     }
+    case 'sr metatypes': {
+      result = { op: 'sr.metatypes', metatypes: loadSrData().metatypes };
+      break;
+    }
+    case 'sr create-runner': {
+      const id = str(flags.id); if (!id) throw new EngineError('sr create-runner --id ID required');
+      if ((state as any).pcs?.[id]) throw new EngineError(`pc "${id}" already exists`);
+      const attrs: any = {};
+      for (const k of ['body','agility','reaction','strength','willpower','logic','intuition','charisma']) {
+        const v = num(flags[k]); if (v === undefined) throw new EngineError(`--${k} N required`); attrs[k] = v;
+      }
+      const skills: Record<string, number> = {};
+      for (const tok of (str(flags.skills) ?? '').split(',').filter(Boolean)) {
+        const [name, r] = tok.split(':'); if (!name || r === undefined) throw new EngineError(`bad skill "${tok}" — use name:rating`);
+        skills[name.trim()] = Number(r);
+      }
+      const list = (f: any) => (str(f) ? str(f)!.split(',').map((s) => s.trim()).filter(Boolean) : undefined);
+      const input = {
+        name: str(flags.name) || id, metatype: str(flags.metatype)!,
+        attributes: attrs, skills,
+        edge: num(flags.edge), armor: num(flags.armor),
+        magicType: (str(flags['magic-type']) as any) || 'mundane',
+        magic: num(flags.magic), tradition: str(flags.tradition) as any,
+        spells: list(flags.spells), powers: list(flags.powers), augmentations: list(flags.augmentations),
+      };
+      const runner = sr.assembleRunner(input, loadSrData());
+      (state as any).pcs = (state as any).pcs || {};
+      (state as any).pcs[id] = runner;
+      result = { op: 'sr.create-runner', id, runner };
+      mutated = true; break;
+    }
     case 'sr cast': {
-      const id = str(flags.actor); const force = num(flags.force); const dv = num(flags.dv);
-      if (!id || force === undefined || dv === undefined) throw new EngineError('sr cast --actor ID --force N --dv N [--pool N] [--resist N]');
+      const id = str(flags.actor); const force = num(flags.force);
+      if (!id || force === undefined) throw new EngineError('sr cast --actor ID --force N (--spell NAME | --dv N) [--pool N] [--resist N]');
       const a = sr.parseShadowrunActor((state as any).pcs?.[id]);
+      let dv = num(flags.dv);
+      const spellName = str(flags.spell);
+      if (dv === undefined && spellName) {
+        const sp = (a.spells ?? []).find((s) => s.name.toLowerCase() === spellName.toLowerCase());
+        if (!sp) throw new EngineError(`${a.name} doesn't know "${spellName}"`);
+        dv = sp.drain;
+      }
+      if (dv === undefined) throw new EngineError('provide --spell <known spell> or --dv N');
       const castingPool = num(flags.pool) ?? (a.attributes.magic + (a.skills['spellcasting'] ?? 0));
       const resistPool = num(flags.resist) ?? (a.attributes.willpower + (a.tradition === 'shamanic' ? a.attributes.charisma : a.attributes.logic));
       const roller = makeRoller(state.rng);
       const cast = sr.castSpell(roller, { force, magic: a.attributes.magic, castingPool, drainValue: dv, drainResistPool: resistPool });
       const dmg = sr.applyDamage(a.monitors, cast.drainTaken, cast.drainType, a.attributes.body);
       (state as any).pcs[id].monitors = dmg.monitors;
-      result = { op: 'sr.cast', actor: id, force, ...cast, monitors: dmg.monitors, status: dmg.status, rng: roller.consumed() };
+      result = { op: 'sr.cast', actor: id, spell: spellName ?? null, force, ...cast, monitors: dmg.monitors, status: dmg.status, rng: roller.consumed() };
       mutated = true; break;
     }
     default: throw new EngineError(`unknown command "${argv.join(' ')}"\n${USAGE}`);
@@ -390,12 +434,14 @@ const USAGE = `engine <command> [--campaign <name>] [flags]
   character create --campaign C --id ID --name "…" --race R [--subrace S] --class CL --background BG --str N --dex N --con N --int N --wis N --cha N --skills s1,s2 [--bgSkills a,b] [--cantrips c1,c2] [--spells s1,s2] [--ac N]
   character create --from-pregen <id> --id ID [--name "…"]   # quick-start from engine/data/pregens
   sr new-runner --id ID --from street-sam|mage [--name "…"]   # quick-start from engine/data/shadowrun/pregens
+  sr metatypes                                                # list metatypes (mods, ranges, edgeBase, innate armor)
+  sr create-runner --id ID --metatype M --body N --agility N --reaction N --strength N --willpower N --logic N --intuition N --charisma N --skills name:rating,... [--name "…"] [--edge N] [--armor N] [--magic-type mundane|magician|adept] [--magic N] [--tradition hermetic|shamanic] [--spells s1,s2] [--powers p1,p2] [--augmentations a1,a2]
   sr pool   --dice N [--threshold N]
   sr test   --actor ID --attr A [--skill S] [--threshold N]
   sr soak   --actor ID --damage N [--ap N]
   sr damage --actor ID --amount N --type physical|stun
   sr init   --actor ID
-  sr cast   --actor ID --force N --dv N [--pool N] [--resist N]`;
+  sr cast   --actor ID --force N (--spell NAME | --dv N) [--pool N] [--resist N]   # --spell pulls data-owned Drain from the actor's known spells`;
 
 try { main(); }
 catch (err: any) {

@@ -43,3 +43,18 @@ test('parseShadowrunActor accepts an awakened mage with spells', () => {
   assert.equal(a.tradition, 'hermetic');
   assert.equal(a.spells![0].drain, 3);
 });
+
+test('parseShadowrunActor accepts the new chargen fields', () => {
+  const a = validRunner();
+  a.magicType = 'adept'; a.attributes.magic = 5;
+  a.powers = ['improved-reflexes-1']; a.augmentations = []; a.initiativeDice = 1;
+  const parsed = parseShadowrunActor(a);
+  assert.equal(parsed.magicType, 'adept');
+  assert.equal(parsed.initiativeDice, 1);
+  assert.deepEqual(parsed.powers, ['improved-reflexes-1']);
+});
+
+test('parseShadowrunActor still accepts an actor without the new fields', () => {
+  const a = parseShadowrunActor(validRunner());   // no magicType/powers/etc
+  assert.equal(a.magicType, undefined);
+});

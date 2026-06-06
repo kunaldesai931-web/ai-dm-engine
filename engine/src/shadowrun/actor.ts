@@ -19,6 +19,10 @@ export const ShadowrunActor = z.object({
   armor: z.number().int().min(0),
   tradition: z.enum(['hermetic', 'shamanic']).optional(),
   spells: z.array(z.object({ name: z.string(), drain: z.number().int() })).optional(),
+  magicType: z.enum(['mundane', 'magician', 'adept']).optional(),
+  powers: z.array(z.string()).optional(),
+  augmentations: z.array(z.string()).optional(),
+  initiativeDice: z.number().int().min(0).optional(),
 });
 export type TShadowrunActor = z.infer<typeof ShadowrunActor>;
 

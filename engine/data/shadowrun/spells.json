@@ -1,0 +1,10 @@
+[
+  { "name": "Manabolt", "drain": 3, "category": "mana", "combat": true },
+  { "name": "Stunbolt", "drain": 3, "category": "mana", "combat": true },
+  { "name": "Powerbolt", "drain": 3, "category": "physical", "combat": true },
+  { "name": "Fireball", "drain": 5, "category": "physical", "combat": true },
+  { "name": "Heal", "drain": 4, "category": "mana" },
+  { "name": "Armor", "drain": 4, "category": "physical" },
+  { "name": "Increase Reflexes", "drain": 5, "category": "physical" },
+  { "name": "Invisibility", "drain": 5, "category": "mana" }
+]

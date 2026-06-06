@@ -39,6 +39,7 @@ export function applyDamage(monitors: Monitors, amount: number, type: 'physical'
 
 export function initiative(actor: TShadowrunActor, roller: Roller): { score: number; hits: number; total: number } {
   const score = actor.attributes.reaction + actor.attributes.intuition;
-  const r = rollPool(roller, score);
+  const pool = score + (actor.initiativeDice ?? 0);
+  const r = rollPool(roller, pool);
   return { score, hits: r.hits, total: score + r.hits };
 }
